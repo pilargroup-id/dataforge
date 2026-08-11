@@ -19,4 +19,4 @@ CREATE TABLE IF NOT EXISTS permission_assignments (
   CONSTRAINT fk_permission_assignments_submodule
     FOREIGN KEY (submodule_id) REFERENCES permission_submodules(id)
     ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

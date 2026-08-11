@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS conversion_batches (
   original_folder_name varchar(255) NOT NULL,
   source_format varchar(30) NOT NULL,
   target_format varchar(30) NOT NULL,
+  template_code varchar(100) NULL,
   status enum('UPLOADING','VALIDATING','QUEUED','PROCESSING','COMPLETED','REJECTED','FAILED','EXPIRED') NOT NULL DEFAULT 'UPLOADING',
   total_input_files int NOT NULL DEFAULT 0,
   processed_input_files int NOT NULL DEFAULT 0,
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS conversion_batches (
   KEY idx_conversion_batches_status (status),
   KEY idx_conversion_batches_expires_at (expires_at),
   KEY idx_conversion_batches_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS conversion_files (
   id bigint NOT NULL AUTO_INCREMENT,
@@ -49,7 +50,7 @@ CREATE TABLE IF NOT EXISTS conversion_files (
   KEY idx_conversion_files_batch_id (batch_id),
   KEY idx_conversion_files_role (file_role),
   CONSTRAINT fk_conversion_files_batch FOREIGN KEY (batch_id) REFERENCES conversion_batches(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS permission_modules (
   id bigint NOT NULL AUTO_INCREMENT,
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS permission_modules (
   updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_permission_module_code (code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS permission_submodules (
   id bigint NOT NULL AUTO_INCREMENT,
@@ -78,7 +79,7 @@ CREATE TABLE IF NOT EXISTS permission_submodules (
   UNIQUE KEY uq_permission_submodule_code (module_id, code),
   KEY idx_permission_submodules_module_id (module_id),
   CONSTRAINT fk_permission_submodules_module FOREIGN KEY (module_id) REFERENCES permission_modules(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS permission_assignments (
   id bigint NOT NULL AUTO_INCREMENT,
@@ -97,7 +98,7 @@ CREATE TABLE IF NOT EXISTS permission_assignments (
   KEY idx_permission_assignments_submodule (submodule_id),
   CONSTRAINT fk_permission_assignments_module FOREIGN KEY (module_id) REFERENCES permission_modules(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_permission_assignments_submodule FOREIGN KEY (submodule_id) REFERENCES permission_submodules(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO permission_modules (code, name, description, sort_order, is_active)
 VALUES
@@ -107,6 +108,16 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), 
 
 INSERT INTO permission_submodules (module_id, code, name, description, sort_order, is_active)
 SELECT id, 'XLSX_TO_JSONL', 'XLS/XLSX to JSONL', 'Convert and merge XLS/XLSX folder batches into JSONL', 10, 1
+FROM permission_modules WHERE code = 'CONVERT'
+ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), sort_order = VALUES(sort_order), is_active = VALUES(is_active);
+
+INSERT INTO permission_submodules (module_id, code, name, description, sort_order, is_active)
+SELECT id, 'EXCEL_TO_PDF', 'Excel to PDF', 'Convert Excel menjadi PDF menggunakan template yang dipilih', 20, 1
+FROM permission_modules WHERE code = 'CONVERT'
+ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), sort_order = VALUES(sort_order), is_active = VALUES(is_active);
+
+INSERT INTO permission_submodules (module_id, code, name, description, sort_order, is_active)
+SELECT id, 'EXCEL_TO_XML', 'Excel to XML', 'Convert Excel menjadi XML menggunakan template/preset sistem yang dipilih', 30, 1
 FROM permission_modules WHERE code = 'CONVERT'
 ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), sort_order = VALUES(sort_order), is_active = VALUES(is_active);
 

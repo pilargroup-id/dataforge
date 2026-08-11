@@ -22,6 +22,16 @@ function sanitizeFileName(value, fallback = 'dataforge') {
   return cleaned || fallback;
 }
 
+function sanitizeReadableFileName(value, fallback = 'dataforge') {
+  const cleaned = String(value || '')
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned || fallback;
+}
+
 function extensionOf(fileName) {
   return path.extname(fileName || '').toLowerCase();
 }
@@ -52,6 +62,7 @@ module.exports = {
   ensureDir,
   removeDir,
   sanitizeFileName,
+  sanitizeReadableFileName,
   extensionOf,
   isExcelFile,
   listFilesRecursive,

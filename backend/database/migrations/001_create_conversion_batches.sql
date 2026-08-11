@@ -27,4 +27,4 @@ CREATE TABLE IF NOT EXISTS conversion_batches (
   KEY idx_conversion_batches_status (status),
   KEY idx_conversion_batches_expires_at (expires_at),
   KEY idx_conversion_batches_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

@@ -37,5 +37,7 @@ module.exports = {
   key: 'XLSX:JSONL',
   sourceFormats: ['XLS', 'XLSX'],
   targetFormat: 'JSONL',
+  permissionCode: 'XLSX_TO_JSONL',
+  inputMode: 'batch',
   convert,
 };

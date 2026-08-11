@@ -4,13 +4,6 @@ const ConverterRegistry = require('../converters/converter.registry');
 const dataforgeConfig = require('../config/dataforge.config');
 const { isPastTimeToday } = require('../utils/date.util');
 
-function permissionSubmoduleFor(sourceFormat, targetFormat) {
-  const source = String(sourceFormat || '').toUpperCase();
-  const target = String(targetFormat || '').toUpperCase();
-  if (['XLS', 'XLSX'].includes(source) && target === 'JSONL') return 'XLSX_TO_JSONL';
-  return `${source}_TO_${target}`;
-}
-
 async function requireSupportedConversionAndPermission(req, res, next) {
   try {
     const source = String(req.params.sourceFormat || '').toUpperCase();
@@ -32,7 +25,7 @@ async function requireSupportedConversionAndPermission(req, res, next) {
       });
     }
 
-    const submodule = permissionSubmoduleFor(source, target);
+    const submodule = converter.permissionCode;
     const permission = await PermissionService.hasPermission(req.user, 'CONVERT', submodule);
     if (!permission.allowed) {
       return R.forbidden(res, 'Permission denied', {
@@ -52,4 +45,4 @@ async function requireSupportedConversionAndPermission(req, res, next) {
   }
 }
 
-module.exports = { requireSupportedConversionAndPermission, permissionSubmoduleFor };
+module.exports = { requireSupportedConversionAndPermission };

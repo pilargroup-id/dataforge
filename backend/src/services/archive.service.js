@@ -14,7 +14,9 @@ function createZip({ zipPath, files, manifest }) {
     archive.pipe(output);
 
     for (const file of files) {
-      archive.file(file.file_path, { name: path.basename(file.file_path) });
+      archive.file(file.file_path, {
+        name: file.archive_name || path.basename(file.file_path),
+      });
     }
 
     archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });

@@ -1,4 +1,3 @@
-const fs = require('fs');
 const path = require('path');
 const ConversionBatchModel = require('../models/conversion-batch.model');
 const ConversionFileModel = require('../models/conversion-file.model');
@@ -7,9 +6,9 @@ const CleanupService = require('./cleanup.service');
 const dataforgeConfig = require('../config/dataforge.config');
 const STATUS = require('../constants/conversion-status.constant');
 const { calculateExpiry } = require('../utils/date.util');
-const { ensureDir, sanitizeFileName, removeDir } = require('../utils/file.util');
+const { ensureDir, sanitizeReadableFileName, removeDir } = require('../utils/file.util');
 
-async function processBatch({ batchId, batchName, converter, files, sourceFormat, targetFormat }) {
+async function processBatch({ batchId, batchName, converter, files, sourceFormat, targetFormat, templateCode, options = {} }) {
   const resultDir = path.join(dataforgeConfig.storage.resultRoot, batchId);
   const outputDir = path.join(resultDir, 'output');
   ensureDir(outputDir);
@@ -21,6 +20,8 @@ async function processBatch({ batchId, batchName, converter, files, sourceFormat
       files,
       outputDir,
       batchName,
+      templateCode,
+      options,
       maxPartSizeBytes: dataforgeConfig.output.maxPartSizeBytes,
       onValidated: () => ConversionBatchModel.updateStatus(batchId, STATUS.PROCESSING, { progress_percent: 0 }),
       onProgress: ({ processedFiles, progressPercent }) =>
@@ -39,39 +40,33 @@ async function processBatch({ batchId, batchName, converter, files, sourceFormat
     }));
     await ConversionFileModel.insertMany(batchId, outputFileRows);
 
-    const safeBatchName = sanitizeFileName(batchName);
+    const safeBatchName = sanitizeReadableFileName(batchName);
     const zipName = `${safeBatchName}.zip`;
     const zipPath = path.join(resultDir, zipName);
     const completedAt = new Date();
-    const expiresAt = calculateExpiry(
-      completedAt,
-      dataforgeConfig.expiry.hours,
-      dataforgeConfig.expiry.dailyCutoff
-    );
+    const expiresAt = calculateExpiry(completedAt, dataforgeConfig.expiry.hours, dataforgeConfig.expiry.dailyCutoff);
 
     const manifest = {
       batch_id: batchId,
       batch_name: batchName,
       source_format: sourceFormat,
       target_format: targetFormat,
+      template_code: templateCode || null,
       total_input_files: files.length,
       total_output_files: conversion.files.length,
       total_records: conversion.totalRecords,
-      headers: conversion.schema.headers,
+      schema: conversion.schema || null,
       completed_at: completedAt.toISOString(),
       expires_at: expiresAt.toISOString(),
       output_files: conversion.files.map((file) => ({
         file_name: file.file_name,
+        archive_name: file.archive_name || file.file_name,
         size_bytes: file.size_bytes,
         record_count: file.records,
       })),
     };
 
-    const archive = await ArchiveService.createZip({
-      zipPath,
-      files: conversion.files,
-      manifest,
-    });
+    const archive = await ArchiveService.createZip({ zipPath, files: conversion.files, manifest });
 
     await ConversionFileModel.insertMany(batchId, [{
       file_role: 'ARCHIVE',
@@ -108,7 +103,7 @@ async function processBatch({ batchId, batchName, converter, files, sourceFormat
       });
     }
   } catch (err) {
-    const rejected = err.code === 'SCHEMA_VALIDATION_FAILED';
+    const rejected = err.code === 'SCHEMA_VALIDATION_FAILED' || err.code === 'TEMPLATE_COLUMN_MISSING';
     await ConversionBatchModel.updateStatus(batchId, rejected ? STATUS.REJECTED : STATUS.FAILED, {
       error_message: err.message,
       validation_errors: err.validationErrors || null,

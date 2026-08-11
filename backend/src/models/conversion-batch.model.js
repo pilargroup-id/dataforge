@@ -14,16 +14,17 @@ async function createBatch(data) {
   const pool = requireDb();
   await pool.query(
     `INSERT INTO conversion_batches
-      (id, batch_name, original_folder_name, source_format, target_format, status,
+      (id, batch_name, original_folder_name, source_format, target_format, template_code, status,
        total_input_files, processed_input_files, total_output_files, total_records,
        progress_percent, created_by, created_by_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
     [
       data.id,
       data.batchName,
       data.originalFolderName,
       data.sourceFormat,
       data.targetFormat,
+      data.templateCode,
       data.status,
       data.totalInputFiles,
       data.createdBy,

@@ -17,4 +17,4 @@ CREATE TABLE IF NOT EXISTS conversion_files (
   CONSTRAINT fk_conversion_files_batch
     FOREIGN KEY (batch_id) REFERENCES conversion_batches(id)
     ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
