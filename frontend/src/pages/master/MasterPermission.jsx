@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import ButtonCreateUserPermission from '../../components/button/button-user-permission/ButtonCreateUserPermission.jsx'
 import DataTableMasterPermission from '../../components/table/master/DataTableMasterPermission.jsx'
 import { permissionRows } from '../../dummy/dataTable.js'
 import { permissionTableColumns } from '../../dummy/permissionTableColumns.jsx'
@@ -43,7 +44,9 @@ function MasterPermission(props) {
           <h1 className="dashboard-panel__title">{pageTitle}</h1>
         </div>
 
-        <div className="users-table-card__actions" />
+        <div className="users-table-card__actions">
+          <ButtonCreateUserPermission variant="create">Create</ButtonCreateUserPermission>
+        </div>
       </div>
 
       <DataTableMasterPermission

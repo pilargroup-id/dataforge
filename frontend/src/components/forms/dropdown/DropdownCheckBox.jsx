@@ -1,6 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { Check, ChevronDown } from '../../layoute/TemplateIcons.jsx'
+import { getFloatingMenuPosition } from './floatingMenuPosition.js'
 
 function normalizeOption(option) {
   if (typeof option === 'string' || typeof option === 'number') {
@@ -31,7 +33,10 @@ function DropdownCheckBox({
   const buttonId = id ?? `dropdown-checkbox-${generatedId}`
   const menuId = `${buttonId}-menu`
   const [open, setOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState(null)
   const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
   const normalizedOptions = useMemo(() => options.map(normalizeOption), [options])
   const selectedValues = Array.isArray(value) ? value : []
   const selectedOptions = normalizedOptions.filter((option) => selectedValues.includes(option.value))
@@ -41,9 +46,9 @@ function DropdownCheckBox({
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      if (!rootRef.current?.contains(event.target)) {
-        setOpen(false)
-      }
+      if (rootRef.current?.contains(event.target)) return
+      if (menuRef.current?.contains(event.target)) return
+      setOpen(false)
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
@@ -52,6 +57,34 @@ function DropdownCheckBox({
       document.removeEventListener('pointerdown', handlePointerDown)
     }
   }, [])
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return undefined
+    }
+
+    const updatePosition = () => {
+      const position = getFloatingMenuPosition(triggerRef.current)
+      if (position) setMenuPosition(position)
+    }
+
+    updatePosition()
+
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+
+    let resizeObserver
+    if (typeof ResizeObserver !== 'undefined' && triggerRef.current) {
+      resizeObserver = new ResizeObserver(updatePosition)
+      resizeObserver.observe(triggerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+      resizeObserver?.disconnect()
+    }
+  }, [open])
 
   const selectedLabel = selectedOptions
     .slice(0, maxVisibleValues)
@@ -99,6 +132,7 @@ function DropdownCheckBox({
 
       <button
         id={buttonId}
+        ref={triggerRef}
         className="form-dropdown__trigger"
         type="button"
         aria-haspopup="listbox"
@@ -117,45 +151,63 @@ function DropdownCheckBox({
         <ChevronDown className="form-dropdown__chevron" size={18} />
       </button>
 
-      {open ? (
-        <div className="form-dropdown__menu" id={menuId} role="listbox" aria-labelledby={buttonId} aria-multiselectable="true">
-          {selectedOptions.length > 0 ? (
-            <button className="form-dropdown__clear-action" type="button" onClick={() => updateSelectedValues([])}>
-              Clear selected
-            </button>
-          ) : null}
-
-          {normalizedOptions.length > 0 ? (
-            normalizedOptions.map((option) => {
-              const selected = selectedValues.includes(option.value)
-
-              return (
-                <button
-                  className={`form-dropdown__item form-dropdown__item--checkbox${
-                    selected ? ' form-dropdown__item--selected' : ''
-                  }`}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  disabled={option.disabled}
-                  key={option.value}
-                  onClick={() => toggleOption(option)}
-                >
-                  <span className="form-dropdown__checkbox-mark" aria-hidden="true">
-                    {selected ? <Check size={14} /> : null}
-                  </span>
-                  <span className="form-dropdown__item-copy">
-                    <span>{option.label}</span>
-                    {option.description ? <small>{option.description}</small> : null}
-                  </span>
+      {open && menuPosition && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="form-dropdown__menu form-dropdown__menu--floating"
+              id={menuId}
+              role="listbox"
+              aria-labelledby={buttonId}
+              aria-multiselectable="true"
+              ref={menuRef}
+              style={{
+                position: 'fixed',
+                top: `${menuPosition.top}px`,
+                left: `${menuPosition.left}px`,
+                width: `${menuPosition.width}px`,
+                right: 'auto',
+                zIndex: 1400,
+              }}
+            >
+              {selectedOptions.length > 0 ? (
+                <button className="form-dropdown__clear-action" type="button" onClick={() => updateSelectedValues([])}>
+                  Clear selected
                 </button>
-              )
-            })
-          ) : (
-            <div className="form-dropdown__empty">Tidak ada data.</div>
-          )}
-        </div>
-      ) : null}
+              ) : null}
+
+              {normalizedOptions.length > 0 ? (
+                normalizedOptions.map((option) => {
+                  const selected = selectedValues.includes(option.value)
+
+                  return (
+                    <button
+                      className={`form-dropdown__item form-dropdown__item--checkbox${
+                        selected ? ' form-dropdown__item--selected' : ''
+                      }`}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      disabled={option.disabled}
+                      key={option.value}
+                      onClick={() => toggleOption(option)}
+                    >
+                      <span className="form-dropdown__checkbox-mark" aria-hidden="true">
+                        {selected ? <Check size={14} /> : null}
+                      </span>
+                      <span className="form-dropdown__item-copy">
+                        <span>{option.label}</span>
+                        {option.description ? <small>{option.description}</small> : null}
+                      </span>
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="form-dropdown__empty">Tidak ada data.</div>
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
 
       {message ? (
         <p className="form-control__message" id={messageId}>

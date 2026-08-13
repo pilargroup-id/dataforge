@@ -94,7 +94,11 @@ async function list({ userId, isIT, page = 1, limit = 20 }) {
   );
 
   const [rows] = await pool.query(
-    `SELECT * FROM conversion_batches
+    `SELECT id, batch_name, original_folder_name, source_format, target_format, template_code,
+            status, total_input_files, processed_input_files, total_output_files, total_records,
+            progress_percent, zip_file_name, zip_file_path, zip_size_bytes,
+            completed_at, expires_at, deleted_at, created_by, created_by_name, created_at, updated_at
+     FROM conversion_batches
      ${where}
      ORDER BY created_at DESC
      LIMIT ? OFFSET ?`,

@@ -461,6 +461,14 @@ function ConvertPage({ activePage }) {
             <div className="convert-page__grid">
               <div className="convert-page__panel">
                 <div className="convert-page__config">
+                  <Dropdown
+                    label="Jenis Konversi"
+                    value={selectedKey}
+                    options={capabilityOptions}
+                    required
+                    onChange={handleConversionChange}
+                  />
+
                   {isBatchMode ? (
                     <TextField
                       label="Nama Folder / Batch"
@@ -472,25 +480,16 @@ function ConvertPage({ activePage }) {
                     />
                   ) : null}
 
-                  <Dropdown
-                    label="Jenis Konversi"
-                    value={selectedKey}
-                    options={capabilityOptions}
-                    required
-                    onChange={handleConversionChange}
-                    className="convert-page__row-conversion"
-                  />
+                  {templateOptions.length > 0 ? (
+                    <Dropdown
+                      label="Template"
+                      value={templateCode}
+                      options={templateOptions}
+                      placeholder="Gunakan template default"
+                      onChange={(value) => setTemplateCode(value)}
+                    />
+                  ) : null}
                 </div>
-
-                {templateOptions.length > 0 ? (
-                  <Dropdown
-                    label="Template"
-                    value={templateCode}
-                    options={templateOptions}
-                    placeholder="Gunakan template default"
-                    onChange={(value) => setTemplateCode(value)}
-                  />
-                ) : null}
 
                 <Upload
                   key={`${selectedKey}-${uploadResetKey}`}
@@ -506,6 +505,48 @@ function ConvertPage({ activePage }) {
                 />
 
                 {formError ? <p className="convert-page__error">{formError}</p> : null}
+
+                <div className="convert-page__actionbar">
+                  <div className="convert-page__actionbar-buttons">
+                    <button
+                      type="submit"
+                      className="users-table-card__action"
+                      disabled={submitting}
+                    >
+                      <RefreshCw05
+                        size={18}
+                        aria-hidden="true"
+                        className={submitting ? 'convert-page__spin' : ''}
+                      />
+                      {submitting ? 'Mengunggah...' : 'Mulai Convert'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="convert-page__btn convert-page__btn--outline"
+                      onClick={handleDownload}
+                      disabled={
+                        !currentBatch ||
+                        currentBatch.status !== 'COMPLETED' ||
+                        !currentBatch.download_available ||
+                        downloading
+                      }
+                    >
+                      <Download size={18} aria-hidden="true" />
+                      {downloading ? 'Mengunduh...' : 'Download Hasil'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="convert-page__btn convert-page__btn--outline"
+                      onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                      disabled={!currentBatch}
+                    >
+                      <Eye size={18} aria-hidden="true" />
+                      Lihat Output
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <aside className="convert-page__panel convert-page__panel--status" ref={resultRef}>
@@ -615,48 +656,6 @@ function ConvertPage({ activePage }) {
                   </div>
                 </div>
               </aside>
-            </div>
-
-            <div className="convert-page__actionbar">
-              <div className="convert-page__actionbar-buttons">
-                <button
-                  type="submit"
-                  className="users-table-card__action"
-                  disabled={submitting}
-                >
-                  <RefreshCw05
-                    size={18}
-                    aria-hidden="true"
-                    className={submitting ? 'convert-page__spin' : ''}
-                  />
-                  {submitting ? 'Mengunggah...' : 'Mulai Convert'}
-                </button>
-
-                <button
-                  type="button"
-                  className="convert-page__btn convert-page__btn--outline"
-                  onClick={handleDownload}
-                  disabled={
-                    !currentBatch ||
-                    currentBatch.status !== 'COMPLETED' ||
-                    !currentBatch.download_available ||
-                    downloading
-                  }
-                >
-                  <Download size={18} aria-hidden="true" />
-                  {downloading ? 'Mengunduh...' : 'Download Hasil'}
-                </button>
-
-                <button
-                  type="button"
-                  className="convert-page__btn convert-page__btn--outline"
-                  onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  disabled={!currentBatch}
-                >
-                  <Eye size={18} aria-hidden="true" />
-                  Lihat Output
-                </button>
-              </div>
             </div>
           </>
         )}
