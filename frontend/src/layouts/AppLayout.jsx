@@ -7,8 +7,8 @@ import Sidebar from '../components/layoute/Sidebar.jsx'
 import { pageDetails } from '../dummy/pageDetails.js'
 
 const defaultActivePage = {
-  title: 'Page1',
-  eyebrow: 'Master Data',
+  title: 'Convert',
+  eyebrow: 'File Conversion',
   value: '0',
   detail: 'Halaman default.',
 }
