@@ -4,7 +4,7 @@ import logoPiagam from '../../images/logo-piagam2.svg'
 import logoPiagamTransparent from '../../images/logo-piagam.svg'
 import '../../styles/template-style/TemplateComponents.css'
 
-function Header({ title = 'Template Pilar', onMenuToggle, showMenuButton = false }) {
+function Header({ title = 'DataForge', onMenuToggle, showMenuButton = false }) {
   return (
     <header className="header-main">
       <img

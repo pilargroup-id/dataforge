@@ -53,7 +53,7 @@ function AppLayout({ activePage, activePath, children, onRefresh }) {
 
       <div className="dashboard-stage">
         <Header
-          title="Template Pilar"
+          title="DataForge"
           showMenuButton
           onMenuToggle={() => setMobileSidebarOpen(true)}
         />
