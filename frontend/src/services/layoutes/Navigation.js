@@ -6,6 +6,7 @@ import {
   TrendingUp,
   MoreHorizontal,
   Users01,
+  RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
 
 export const defaultNavigationPath = '/dashboard'
@@ -20,6 +21,9 @@ export const implementedNavigationPaths = [
   '/TableActions',
   '/users',
   '/Chart',
+  '/Convert',
+  '/Master',
+  '/Master/UserPermission',
 ]
 
 export const primaryNavigationItems = [
@@ -66,7 +70,27 @@ export const primaryNavigationItems = [
     label: 'Chart',
     href: '/Chart',
     icon: Chart01,
-  }
+  },
+  {
+    id: 'convert',
+    label: 'Convert',
+    href: '/Convert',
+    icon: RefreshCw05,
+  },
+  {
+    id: 'master',
+    label: 'Master',
+    href: '/Master',
+    icon: Folder,
+    children: [
+      {
+        id: 'user-permission',
+        label: 'User Permission',
+        href: '/Master/UserPermission',
+        icon: Users01,
+      },
+    ],
+  },
 ]
 
 export const secondaryNavigationItems = [

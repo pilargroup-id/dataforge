@@ -13,26 +13,14 @@ const defaultActivePage = {
   detail: 'Halaman default.',
 }
 
-function AppLayout({
-  activePage,
-  activePath,
-  children,
-  isSearchTable = false,
-  searchQuery: controlledSearchQuery,
-  onRefresh,
-  onSearchChange,
-}) {
+function AppLayout({ activePage, activePath, children, onRefresh }) {
   const location = useLocation()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [internalSearchQuery, setInternalSearchQuery] = useState('')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
 
   const resolvedActivePath = activePath ?? location.pathname
   const resolvedActivePage = pageDetails[resolvedActivePath] ?? activePage ?? defaultActivePage
-  const resolvedPageTitle = resolvedActivePage.title ?? defaultActivePage.title
-  const searchQuery = controlledSearchQuery ?? internalSearchQuery
-  const handleSearchChange = onSearchChange ?? setInternalSearchQuery
   const handleRefresh = onRefresh ?? (() => setLastUpdated(new Date()))
 
   const shellClassName = [
@@ -52,8 +40,6 @@ function AppLayout({
         collapsed={sidebarCollapsed}
         mobileOpen={mobileSidebarOpen}
         activePath={resolvedActivePath}
-        userName=""
-        userRole=""
         onToggleCollapse={() => setSidebarCollapsed((currentValue) => !currentValue)}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
@@ -70,21 +56,6 @@ function AppLayout({
           title="Template Pilar"
           showMenuButton
           onMenuToggle={() => setMobileSidebarOpen(true)}
-          breadcrumb={[
-            { label: 'Template Pilar', href: '#' },
-            { label: resolvedPageTitle, href: '#', active: true },
-          ]}
-          searchProps={{
-            value: searchQuery,
-            placeholder: isSearchTable ? 'Cari data table...' : 'Search Data...',
-            ariaLabel: isSearchTable ? 'Cari data table' : 'Search legal tickets',
-            onChange: (event) => handleSearchChange(event.target.value),
-          }}
-          notificationProps={{
-            ariaLabel: 'Open notifications',
-            modalTitle: 'Notifications',
-          }}
-          onRefresh={handleRefresh}
         />
 
         <main className={`dashboard-main${isMyTicketsPage ? ' dashboard-main--mytickets' : ''}`}>
@@ -99,7 +70,6 @@ function AppLayout({
                   activePage: resolvedActivePage,
                   activePath: resolvedActivePath,
                   lastUpdated,
-                  searchQuery,
                   onDataChange: handleRefresh,
                 }}
               />

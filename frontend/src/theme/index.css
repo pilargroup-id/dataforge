@@ -1,0 +1,54 @@
+/*
+  Global zoom control.
+  The base UI was designed at a fairly large scale; this scales the whole
+  app down uniformly (like browser zoom) so more content fits on screen
+  without shrinking any single component's proportions.
+  Tweak --app-zoom to taste (1 = no zoom, 0.9 = 90%, 0.8 = 80%, ...).
+*/
+:root {
+  --app-zoom: 0.8;
+}
+
+html {
+  zoom: var(--app-zoom);
+}
+
+/*
+  The app shell fills the screen with `100dvh`/`100vh`. Those units measure
+  the real (unzoomed) viewport, so once `zoom` shrinks everything, a gap
+  the size of the shrink is left at the bottom of the page. Rebasing these
+  two containers on `height: 100%` instead makes them fill whatever space
+  is actually available after zoom, closing that gap.
+*/
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.dashboard-shell {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.sidebar {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+/*
+  Laptop screens are narrower/shorter than an external monitor, so the
+  data table (rows, cell padding, pagination) gets an extra shrink on top
+  of --app-zoom whenever the viewport is laptop-sized. Only the table is
+  affected — the rest of the layout keeps using --app-zoom alone.
+  Tweak --table-zoom-laptop or the breakpoint to taste.
+*/
+@media (max-width: 1600px) {
+  :root {
+    --table-zoom-laptop: 0.75;
+  }
+
+  .users-table-layout {
+    zoom: var(--table-zoom-laptop);
+  }
+}

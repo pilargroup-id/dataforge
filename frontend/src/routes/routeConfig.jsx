@@ -13,6 +13,8 @@ import Page3 from '../pages/page3/Page3.jsx';
 
 import IconsPage from '../pages/icons/IconsPage.jsx';
 import FormsPage from '../pages/forms/FormsPage.jsx';
+import ConvertPage from '../pages/convert/ConvertPage.jsx';
+import MasterPermission from '../pages/master/MasterPermission.jsx';
 
 export default function RouteConfig() {
   return (
@@ -31,6 +33,8 @@ export default function RouteConfig() {
         <Route path="forms" element={<FormsPage />} />
         <Route path="Forms" element={<FormsPage />} />
         <Route path="icons" element={<IconsPage />} />
+        <Route path="Convert" element={<ConvertPage />} />
+        <Route path="Master/UserPermission" element={<MasterPermission />} />
         <Route path="*" element={<DashboardPage />} />
       </Route>
     </Routes>

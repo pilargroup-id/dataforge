@@ -1,13 +1,13 @@
-import CreateButton from '../button/ButtonCreate.jsx'
-import ButtonDelete from '../button/ButtonDelete.jsx'
-import ButtonEdit from '../button/ButtonEdit.jsx'
-import DataTable from './DataTable.jsx'
+import CreateButton from '../../button/ButtonCreate.jsx'
+import ButtonDelete from '../../button/ButtonDelete.jsx'
+import ButtonEdit from '../../button/ButtonEdit.jsx'
+import DataTable from '../DataTable.jsx'
 
 export {
   DataTableChips,
   DataTableIdentity,
   DataTableStatus,
-} from './DataTable.jsx'
+} from '../DataTable.jsx'
 
 const defaultActions = [
   {
@@ -43,7 +43,7 @@ function getActionButton(action) {
   return null
 }
 
-function DataTableAction({
+function DataTableMasterPermission({
   columns = [],
   actions = [],
   mobileCard,
@@ -123,4 +123,4 @@ function DataTableAction({
   )
 }
 
-export default DataTableAction
+export default DataTableMasterPermission

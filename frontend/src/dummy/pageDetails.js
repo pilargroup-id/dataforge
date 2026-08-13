@@ -35,6 +35,12 @@ export const pageDetails = {
     value: '5',
     detail: 'Kumpulan chart yang siap dipakai untuk visualisasi data.',
   },
+  '/Convert': {
+    title: 'Convert',
+    eyebrow: 'File Conversion',
+    value: '0',
+    detail: 'Upload dokumen Excel dan pantau status konversi batch.',
+  },
   '/forms': {
     title: 'Forms',
     eyebrow: 'Component Template',
@@ -58,6 +64,12 @@ export const pageDetails = {
     eyebrow: 'Access Control',
     value: '16',
     detail: 'User internal yang memiliki akses ke aplikasi legal dengan berbagai peran dan status.',
+  },
+  '/Master/UserPermission': {
+    title: 'User Permission',
+    eyebrow: 'Master Data',
+    value: '6',
+    detail: 'Pengaturan hak akses tiap role terhadap modul aplikasi.',
   },
   '/settings': {
     title: 'Settings',

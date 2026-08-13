@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { ChevronLeft, ChevronRight } from './TemplateIcons.jsx'
+import { getCurrentUser } from '../../services/auth.service.js'
 import {
   defaultNavigationPath,
   implementedNavigationPaths,
@@ -156,8 +157,8 @@ function Sidebar({
   collapsed = false,
   mobileOpen = false,
   activePath = '/dashboard',
-  userName = 'Al fatih',
-  userRole = 'Frontend Developer',
+  userName: userNameProp,
+  userRole: userRoleProp,
   primaryItems = primaryNavigationItems,
   secondaryItems = secondaryNavigationItems,
   onAction,
@@ -165,6 +166,33 @@ function Sidebar({
   onCloseMobile,
 }) {
   const [expandedGroups, setExpandedGroups] = useState({})
+  const [authUser, setAuthUser] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    getCurrentUser()
+      .then((user) => {
+        if (isMounted) {
+          setAuthUser(user)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load current user', error)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const userName = authUser?.name || authUser?.username || userNameProp || 'User'
+  const userRole =
+    authUser?.job_level_name ||
+    authUser?.position ||
+    authUser?.departments?.[0]?.name ||
+    userRoleProp ||
+    ''
   const initials = getInitials(userName)
   const activeExpandedGroups = useMemo(
     () => getInitiallyExpandedGroups([...primaryItems, ...secondaryItems], activePath),
