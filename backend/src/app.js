@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const config = require('./config');
 const routes = require('./routes');
@@ -27,6 +28,23 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api', routes);
+
+// =====================================================
+// FRONTEND PRODUCTION BUILD
+// =====================================================
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+
+app.use(express.static(frontendDistPath));
+
+// SPA fallback
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    return res.sendFile(path.join(frontendDistPath, 'index.html'));
+  }
+
+  return next();
+});
+
 app.use(notFound);
 app.use(errorHandler);
 
