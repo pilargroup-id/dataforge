@@ -93,6 +93,7 @@ function DataTableAction({
                     variant="icon"
                     tone={action.variant === 'danger' ? 'danger' : 'default'}
                     type="button"
+                    className={action.className}
                     disabled={isDisabled}
                     aria-label={buttonLabel}
                     title={buttonLabel}

@@ -5,6 +5,11 @@ export async function getPermissionCatalog() {
   return response?.data ?? []
 }
 
+export async function getPermissionAssignments() {
+  const response = await apiFetch('/api/permissions')
+  return response?.data ?? []
+}
+
 export async function createPermissionAssignment(payload) {
   const response = await apiFetch('/api/permissions', {
     method: 'POST',

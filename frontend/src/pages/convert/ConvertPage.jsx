@@ -19,6 +19,7 @@ import {
   getConversionBatch,
   getConversionBatches,
   getConversionCapabilities,
+  openConversionBatch,
 } from '../../services/conversion.service.js'
 
 const defaultActivePage = {
@@ -123,6 +124,7 @@ function ConvertPage({ activePage }) {
   const [historyMeta, setHistoryMeta] = useState({ total: 0, totalPages: 1 })
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const [downloadingHistoryId, setDownloadingHistoryId] = useState(null)
+  const [openingHistoryId, setOpeningHistoryId] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -297,9 +299,19 @@ function ConvertPage({ activePage }) {
     try {
       const detail = await getConversionBatch(batch.id)
       setCurrentBatch(detail)
-      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+      if (detail.status === 'COMPLETED' && detail.download_available) {
+        setOpeningHistoryId(batch.id)
+        try {
+          await openConversionBatch(detail)
+        } finally {
+          setOpeningHistoryId(null)
+        }
+      } else {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
     } catch (error) {
-      setHistoryError(error.message || 'Gagal memuat detail batch')
+      setHistoryError(error.message || 'Gagal membuka batch')
     }
   }
 
@@ -347,20 +359,23 @@ function ConvertPage({ activePage }) {
     () => [
       {
         key: 'view',
-        label: 'Lihat detail',
+        label: 'Buka file',
         icon: Eye,
+        className: 'convert-page__row-action convert-page__row-action--view',
+        disabled: (row) => openingHistoryId === row.id,
         onClick: (row) => handleViewBatch(row),
       },
       {
         key: 'download',
         label: 'Download',
         icon: Download,
+        className: 'convert-page__row-action convert-page__row-action--download',
         disabled: (row) =>
           row.status !== 'COMPLETED' || !row.download_available || downloadingHistoryId === row.id,
         onClick: (row) => handleHistoryDownload(row),
       },
     ],
-    [downloadingHistoryId],
+    [downloadingHistoryId, openingHistoryId],
   )
 
   const historyTotalPages = Math.max(1, historyMeta.totalPages ?? 1)
@@ -475,7 +490,6 @@ function ConvertPage({ activePage }) {
                       placeholder="Contoh: Marketplace Agustus"
                       value={folderName}
                       required
-                      helperText="Dipakai sebagai nama batch dan nama file ZIP hasil konversi."
                       onChange={(event) => setFolderName(event.target.value)}
                     />
                   ) : null}
@@ -518,7 +532,7 @@ function ConvertPage({ activePage }) {
                         aria-hidden="true"
                         className={submitting ? 'convert-page__spin' : ''}
                       />
-                      {submitting ? 'Mengunggah...' : 'Mulai Convert'}
+                      {submitting ? 'Mengunggah...' : 'Convert'}
                     </button>
 
                     <button
@@ -533,7 +547,7 @@ function ConvertPage({ activePage }) {
                       }
                     >
                       <Download size={18} aria-hidden="true" />
-                      {downloading ? 'Mengunduh...' : 'Download Hasil'}
+                      {downloading ? 'Mengunduh...' : 'Download'}
                     </button>
 
                     <button
@@ -543,7 +557,7 @@ function ConvertPage({ activePage }) {
                       disabled={!currentBatch}
                     >
                       <Eye size={18} aria-hidden="true" />
-                      Lihat Output
+                      Output
                     </button>
                   </div>
                 </div>
@@ -613,6 +627,7 @@ function ConvertPage({ activePage }) {
                       <ul className="convert-page__hints">
                         <li>Setiap baris pada file akan dibuat menjadi satu dokumen.</li>
                         <li>Pastikan header kolom sesuai dengan template yang dipilih.</li>
+                        <li>Hasil konversi akan dikemas dalam satu file ZIP sesuai nama batch.</li>
                       </ul>
                     ) : currentBatch.status === 'REJECTED' || currentBatch.status === 'FAILED' ? (
                       <div className="convert-page__validation">
