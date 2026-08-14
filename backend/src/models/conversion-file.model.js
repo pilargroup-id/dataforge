@@ -44,4 +44,13 @@ async function listByBatchId(batchId) {
   return rows;
 }
 
-module.exports = { insertMany, listByBatchId };
+async function findByIdAndBatchId(id, batchId) {
+  const pool = requireDb();
+  const [rows] = await pool.query(
+    'SELECT * FROM conversion_files WHERE id = ? AND batch_id = ? LIMIT 1',
+    [id, batchId]
+  );
+  return rows[0] || null;
+}
+
+module.exports = { insertMany, listByBatchId, findByIdAndBatchId };

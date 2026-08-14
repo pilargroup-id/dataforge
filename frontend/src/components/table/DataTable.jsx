@@ -756,18 +756,20 @@ function DataTable({
     setExpandedRowKey((currentRowKey) => (currentRowKey === rowKey ? null : rowKey))
   }
 
-  const handleRowKeyDown = (event, rowKey) => {
-    if (!hasDetail || (event.key !== 'Enter' && event.key !== ' ')) {
+  const handleRowClick = (row, index, rowKey) => {
+    onRowClick?.(row, index)
+    handleToggleRow(rowKey)
+  }
+
+  const handleRowKeyDown = (event, row, index, rowKey) => {
+    const isRowInteractive = hasDetail || typeof onRowClick === 'function'
+
+    if (!isRowInteractive || (event.key !== 'Enter' && event.key !== ' ')) {
       return
     }
 
     event.preventDefault()
-    handleToggleRow(rowKey)
-  }
-
-  const handleRowClick = (row, index, rowKey) => {
-    onRowClick?.(row, index)
-    handleToggleRow(rowKey)
+    handleRowClick(row, index, rowKey)
   }
 
   const handlePageSizeChange = (value) => {
@@ -908,8 +910,8 @@ function DataTable({
                       onClick={
                         isRowInteractive ? () => handleRowClick(row, index, rowKey) : undefined
                       }
-                      onKeyDown={(event) => handleRowKeyDown(event, rowKey)}
-                      tabIndex={hasDetail ? 0 : undefined}
+                      onKeyDown={(event) => handleRowKeyDown(event, row, index, rowKey)}
+                      tabIndex={isRowInteractive ? 0 : undefined}
                       aria-expanded={hasDetail ? isExpanded : undefined}
                       aria-controls={hasDetail ? accordionId : undefined}
                     >

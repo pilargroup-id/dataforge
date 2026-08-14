@@ -143,6 +143,28 @@ async function download(req, res, next) {
   } catch (err) { return next(err); }
 }
 
+async function fileContent(req, res, next) {
+  try {
+    const batch = await ConversionBatchModel.findById(req.params.id);
+    if (!batch) return R.notFound(res, 'Conversion batch not found');
+    if (!isITUser(req.user) && String(batch.created_by) !== String(req.user.id)) {
+      return R.forbidden(res, 'You cannot access this conversion batch', { code: 'BATCH_FORBIDDEN' });
+    }
+
+    const file = await ConversionFileModel.findByIdAndBatchId(req.params.fileId, batch.id);
+    if (!file || file.file_role !== 'OUTPUT') {
+      return R.notFound(res, 'Output file not found');
+    }
+
+    const filePath = path.join(dataforgeConfig.storage.resultRoot, file.relative_path);
+    if (!filePath.startsWith(dataforgeConfig.storage.resultRoot) || !fs.existsSync(filePath)) {
+      return R.notFound(res, 'Output file is no longer available');
+    }
+
+    return res.sendFile(path.resolve(filePath));
+  } catch (err) { return next(err); }
+}
+
 async function capabilities(req, res, next) {
   try {
     const capabilities = [];
@@ -154,4 +176,4 @@ async function capabilities(req, res, next) {
   } catch (err) { return next(err); }
 }
 
-module.exports = { create, list, show, download, capabilities };
+module.exports = { create, list, show, download, fileContent, capabilities };

@@ -11,6 +11,7 @@ router.get('/', authenticate, requireApp(config.app.slug), ConversionController.
 router.get('/capabilities', authenticate, requireApp(config.app.slug), ConversionController.capabilities);
 router.get('/:id', authenticate, requireApp(config.app.slug), ConversionController.show);
 router.get('/:id/download', authenticate, requireApp(config.app.slug), ConversionController.download);
+router.get('/:id/files/:fileId', authenticate, requireApp(config.app.slug), ConversionController.fileContent);
 
 router.post(
   '/:sourceFormat/:targetFormat',

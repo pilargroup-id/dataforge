@@ -56,10 +56,19 @@ export async function downloadConversionBatch(batch) {
   }
 }
 
-export async function openConversionBatch(batch) {
+export async function openConversionFile(batchId, fileId) {
   const previewTab = window.open('', '_blank')
   try {
-    const blob = await fetchConversionResultBlob(batch)
+    const token = getStoredToken()
+    const response = await fetch(`${API_BASE_URL}/api/conversions/${batchId}/files/${fileId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+
+    if (!response.ok) {
+      throw new Error('Gagal membuka file')
+    }
+
+    const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     if (previewTab) {
       previewTab.location.href = url
@@ -68,6 +77,7 @@ export async function openConversionBatch(batch) {
     }
   } catch {
     previewTab?.close()
-    throw new Error('Gagal membuka hasil konversi')
+    throw new Error('Gagal membuka file')
   }
 }
+
