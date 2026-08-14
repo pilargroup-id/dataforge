@@ -25,12 +25,14 @@ export const primaryNavigationItems = [
     label: 'Master',
     href: '/Master',
     icon: Folder,
+    moduleCode: 'ADMINISTRATION',
     children: [
       {
         id: 'user-permission',
         label: 'User Permission',
         href: '/Master/UserPermission',
         icon: Users01,
+        moduleCode: 'ADMINISTRATION',
       },
     ],
   },

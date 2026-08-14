@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { ChevronLeft, ChevronRight } from './TemplateIcons.jsx'
+import { usePermissions } from '../../context/PermissionsContext.jsx'
 import { getCurrentUser } from '../../services/auth.service.js'
 import {
   defaultNavigationPath,
@@ -9,6 +10,18 @@ import {
   secondaryNavigationItems,
 } from '../../services/layoutes/navigation.js'
 import '../../styles/template-style/TemplateComponents.css'
+
+function filterItemsByPermission(items, hasModule) {
+  return items.reduce((visibleItems, item) => {
+    if (item.moduleCode && !hasModule(item.moduleCode)) {
+      return visibleItems
+    }
+
+    const children = item.children ? filterItemsByPermission(item.children, hasModule) : undefined
+    visibleItems.push(children ? { ...item, children } : item)
+    return visibleItems
+  }, [])
+}
 
 function getInitials(name) {
   return name
@@ -167,6 +180,7 @@ function Sidebar({
 }) {
   const [expandedGroups, setExpandedGroups] = useState({})
   const [authUser, setAuthUser] = useState(null)
+  const { loading: permissionsLoading, hasModule } = usePermissions()
 
   useEffect(() => {
     let isMounted = true
@@ -194,9 +208,13 @@ function Sidebar({
     userRoleProp ||
     ''
   const initials = getInitials(userName)
+  const visiblePrimaryItems = useMemo(
+    () => (permissionsLoading ? [] : filterItemsByPermission(primaryItems, hasModule)),
+    [permissionsLoading, primaryItems, hasModule],
+  )
   const activeExpandedGroups = useMemo(
-    () => getInitiallyExpandedGroups([...primaryItems, ...secondaryItems], activePath),
-    [activePath, primaryItems, secondaryItems],
+    () => getInitiallyExpandedGroups([...visiblePrimaryItems, ...secondaryItems], activePath),
+    [activePath, visiblePrimaryItems, secondaryItems],
   )
   const visibleExpandedGroups = useMemo(
     () => ({
@@ -300,7 +318,7 @@ function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        {primaryItems.map((item) => (
+        {visiblePrimaryItems.map((item) => (
           <SidebarNavItem
             key={getItemKey(item)}
             item={item}

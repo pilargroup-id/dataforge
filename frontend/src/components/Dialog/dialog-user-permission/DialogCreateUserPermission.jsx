@@ -267,7 +267,7 @@ function DialogCreateUserPermission({
 
                 <div className="register-user-popup__field">
                   {form.scopeType === 'USER' ? (
-                    <Dropdown
+                    <DropdownSearch
                       id="permission-scope-id"
                       label={scopeLabel}
                       options={userOptions}

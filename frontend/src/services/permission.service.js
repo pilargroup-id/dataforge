@@ -1,5 +1,10 @@
 import { apiFetch } from './api.js'
 
+export async function getMyPermissions() {
+  const response = await apiFetch('/api/permissions/me')
+  return response?.data ?? { is_it: false, modules: [] }
+}
+
 export async function getPermissionCatalog() {
   const response = await apiFetch('/api/permissions/catalog')
   return response?.data ?? []
