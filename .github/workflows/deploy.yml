@@ -1,0 +1,163 @@
+name: Deploy Dataforge
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Production
+    runs-on:
+      - self-hosted
+      - windows
+      - x64
+
+    timeout-minutes: 20
+
+    env:
+      DEPLOY_DIR: C:\dataforge
+      NODE_ENV: production
+      APP_PORT: "8007"
+
+    steps:
+      # ==========================================
+      # CHECKOUT
+      # ==========================================
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ==========================================
+      # FRONTEND
+      # ==========================================
+      - name: Install frontend dependencies
+        shell: powershell
+        working-directory: frontend
+        run: |
+          if (Test-Path "package-lock.json") {
+            npm ci
+          } else {
+            npm install
+          }
+
+      - name: Build frontend
+        shell: powershell
+        working-directory: frontend
+        run: |
+          npm run build
+
+      # ==========================================
+      # DEPLOY BACKEND
+      # ==========================================
+      - name: Deploy backend
+        shell: powershell
+        run: |
+          $source = "$env:GITHUB_WORKSPACE\backend"
+          $target = "$env:DEPLOY_DIR\backend"
+
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+
+          robocopy `
+            $source `
+            $target `
+            /E `
+            /XD node_modules `
+            /XF .env .env.local
+
+          $code = $LASTEXITCODE
+
+          if ($code -ge 8) {
+            throw "Backend deployment failed. Robocopy exit code: $code"
+          }
+
+          $global:LASTEXITCODE = 0
+
+      # ==========================================
+      # DEPLOY FRONTEND BUILD
+      # ==========================================
+      - name: Deploy frontend build
+        shell: powershell
+        run: |
+          $source = "$env:GITHUB_WORKSPACE\frontend\dist"
+          $target = "$env:DEPLOY_DIR\frontend\dist"
+
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+
+          robocopy `
+            $source `
+            $target `
+            /MIR
+
+          $code = $LASTEXITCODE
+
+          if ($code -ge 8) {
+            throw "Frontend deployment failed. Robocopy exit code: $code"
+          }
+
+          $global:LASTEXITCODE = 0
+
+      # ==========================================
+      # BACKEND DEPENDENCIES
+      # ==========================================
+      - name: Install backend production dependencies
+        shell: powershell
+        run: |
+          Set-Location "$env:DEPLOY_DIR\backend"
+
+          if (Test-Path "package-lock.json") {
+            npm ci --omit=dev
+          } else {
+            npm install --omit=dev
+          }
+
+      # ==========================================
+      # PM2
+      # ==========================================
+      - name: Restart Dataforge
+        shell: powershell
+        run: |
+          Set-Location "$env:DEPLOY_DIR\backend"
+
+          $env:NODE_ENV = "production"
+          $env:APP_PORT = "8007"
+
+          pm2 describe dataforge *> $null
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Restarting existing Dataforge process..."
+            pm2 restart dataforge --update-env
+          }
+          else {
+            Write-Host "Starting Dataforge for the first time..."
+            pm2 start src/server.js --name dataforge
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to start/restart Dataforge."
+          }
+
+          pm2 save
+
+      # ==========================================
+      # HEALTH CHECK
+      # ==========================================
+      - name: Health check
+        shell: powershell
+        run: |
+          Start-Sleep -Seconds 3
+
+          $response = Invoke-WebRequest `
+            -Uri "http://127.0.0.1:8007/health" `
+            -UseBasicParsing `
+            -TimeoutSec 15
+
+          if ($response.StatusCode -ne 200) {
+            throw "Dataforge health check failed."
+          }
+
+          Write-Host "Dataforge deployment successful."
