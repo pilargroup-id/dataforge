@@ -23,12 +23,14 @@ module.exports = {
   },
   output: {
     maxPartSizeBytes: numberEnv('MAX_OUTPUT_SIZE_MB', 99) * 1024 * 1024,
+    archiveTimeoutMs: numberEnv('ARCHIVE_TIMEOUT_MS', 10 * 60 * 1000),
   },
   expiry: {
     hours: numberEnv('RESULT_EXPIRY_HOURS', 6),
     dailyCutoff: process.env.DAILY_CLEANUP_CUTOFF || '20:00',
     lastConversionStart: process.env.LAST_CONVERSION_START_TIME || '19:30',
     cleanupIntervalMs: numberEnv('CLEANUP_INTERVAL_MS', 60000),
+    pausedHours: numberEnv('PAUSED_EXPIRY_HOURS', 48),
   },
   storage: {
     tempRoot: path.resolve(backendRoot, process.env.TEMP_STORAGE_PATH || 'storage/temp'),

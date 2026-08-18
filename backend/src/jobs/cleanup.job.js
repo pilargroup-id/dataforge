@@ -3,9 +3,14 @@ const CleanupService = require('../services/cleanup.service');
 
 async function runCleanup() {
   try {
-    const deleted = await CleanupService.cleanupExpiredResults(new Date());
-    if (deleted > 0) {
-      console.log(`[cleanup] removed ${deleted} expired conversion result(s)`);
+    const expiredResults = await CleanupService.cleanupExpiredResults(new Date());
+    const expiredPaused = await CleanupService.cleanupExpiredPaused(new Date());
+
+    if (expiredResults > 0) {
+      console.log(`[cleanup] removed ${expiredResults} expired conversion result(s)`);
+    }
+    if (expiredPaused > 0) {
+      console.log(`[cleanup] permanently removed ${expiredPaused} expired paused batch(es)`);
     }
   } catch (err) {
     console.error('[cleanup] failed:', err.message);

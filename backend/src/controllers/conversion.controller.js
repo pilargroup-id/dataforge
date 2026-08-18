@@ -13,21 +13,29 @@ const R = require('../utils/response.util');
 const { sanitizeFileName, sanitizeReadableFileName } = require('../utils/file.util');
 const { secondsUntil } = require('../utils/date.util');
 
+function parseJson(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch (_) { return value; }
+}
+
 function normalizeBatch(row) {
   if (!row) return null;
-  let validationErrors = row.validation_errors;
-  if (typeof validationErrors === 'string') {
-    try { validationErrors = JSON.parse(validationErrors); } catch (_) { /* keep raw */ }
-  }
 
+  const validationErrors = parseJson(row.validation_errors);
+  const checkpointData = parseJson(row.checkpoint_data);
   const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+  const pauseExpiresAt = row.pause_expires_at ? new Date(row.pause_expires_at) : null;
   const downloadAvailable = row.status === STATUS.COMPLETED && row.zip_file_path && fs.existsSync(row.zip_file_path);
 
   return {
     ...row,
     validation_errors: validationErrors,
+    checkpoint_data: checkpointData,
     download_available: Boolean(downloadAvailable),
     expires_in_seconds: expiresAt && downloadAvailable ? secondsUntil(expiresAt) : 0,
+    pause_expires_in_seconds:
+      row.status === STATUS.PAUSED && pauseExpiresAt ? secondsUntil(pauseExpiresAt) : 0,
   };
 }
 
@@ -38,6 +46,23 @@ function deriveBatchName(folderName, files) {
     return sanitizeReadableFileName(base, 'dataforge_batch');
   }
   return 'dataforge_batch';
+}
+
+function canAccessBatch(req, batch) {
+  return isITUser(req.user) || String(batch.created_by) === String(req.user.id);
+}
+
+async function loadOwnedBatch(req, res) {
+  const batch = await ConversionBatchModel.findById(req.params.id);
+  if (!batch) {
+    R.notFound(res, 'Conversion batch not found');
+    return null;
+  }
+  if (!canAccessBatch(req, batch)) {
+    R.forbidden(res, 'You cannot access this conversion batch', { code: 'BATCH_FORBIDDEN' });
+    return null;
+  }
+  return batch;
 }
 
 async function create(req, res, next) {
@@ -66,6 +91,7 @@ async function create(req, res, next) {
       sourceFormat: req.sourceFormat,
       targetFormat: req.targetFormat,
       templateCode,
+      options,
       status: STATUS.QUEUED,
       totalInputFiles: files.length,
       createdBy: req.user.id,
@@ -116,13 +142,43 @@ async function list(req, res, next) {
 
 async function show(req, res, next) {
   try {
-    const batch = await ConversionBatchModel.findById(req.params.id);
-    if (!batch) return R.notFound(res, 'Conversion batch not found');
-    if (!isITUser(req.user) && String(batch.created_by) !== String(req.user.id)) {
-      return R.forbidden(res, 'You cannot access this conversion batch', { code: 'BATCH_FORBIDDEN' });
-    }
+    const batch = await loadOwnedBatch(req, res);
+    if (!batch) return;
     const files = await ConversionFileModel.listByBatchId(batch.id);
     return R.ok(res, { ...normalizeBatch(batch), files }, 'Conversion batch loaded');
+  } catch (err) { return next(err); }
+}
+
+async function pause(req, res, next) {
+  try {
+    const batch = await loadOwnedBatch(req, res);
+    if (!batch) return;
+
+    const updated = await ConversionService.requestPause(batch.id);
+    return R.ok(res, normalizeBatch(updated), 'Pause requested. Batch will stop at the next safe checkpoint.');
+  } catch (err) { return next(err); }
+}
+
+async function continueBatch(req, res, next) {
+  try {
+    const batch = await loadOwnedBatch(req, res);
+    if (!batch) return;
+
+    const updated = await ConversionService.continueBatch(batch.id);
+    return R.ok(res, normalizeBatch(updated), 'Conversion queued to continue from the last checkpoint.');
+  } catch (err) { return next(err); }
+}
+
+async function cancel(req, res, next) {
+  try {
+    const batch = await loadOwnedBatch(req, res);
+    if (!batch) return;
+
+    await ConversionService.cancelBatch(batch.id);
+    return R.ok(res, {
+      id: batch.id,
+      deleted: true,
+    }, 'Conversion cancelled and batch data deleted.');
   } catch (err) { return next(err); }
 }
 
@@ -130,7 +186,7 @@ async function download(req, res, next) {
   try {
     const batch = await ConversionBatchModel.findById(req.params.id);
     if (!batch) return R.notFound(res, 'Conversion batch not found');
-    if (!isITUser(req.user) && String(batch.created_by) !== String(req.user.id)) {
+    if (!canAccessBatch(req, batch)) {
       return R.forbidden(res, 'You cannot download this conversion batch', { code: 'BATCH_FORBIDDEN' });
     }
     if (batch.status !== STATUS.COMPLETED || !batch.zip_file_path || !fs.existsSync(batch.zip_file_path)) {
@@ -147,7 +203,7 @@ async function fileContent(req, res, next) {
   try {
     const batch = await ConversionBatchModel.findById(req.params.id);
     if (!batch) return R.notFound(res, 'Conversion batch not found');
-    if (!isITUser(req.user) && String(batch.created_by) !== String(req.user.id)) {
+    if (!canAccessBatch(req, batch)) {
       return R.forbidden(res, 'You cannot access this conversion batch', { code: 'BATCH_FORBIDDEN' });
     }
 
@@ -176,4 +232,14 @@ async function capabilities(req, res, next) {
   } catch (err) { return next(err); }
 }
 
-module.exports = { create, list, show, download, fileContent, capabilities };
+module.exports = {
+  create,
+  list,
+  show,
+  pause,
+  continueBatch,
+  cancel,
+  download,
+  fileContent,
+  capabilities,
+};

@@ -2,14 +2,32 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 
-function createZip({ zipPath, files, manifest }) {
+function createZip({ zipPath, files, manifest, timeoutMs = 10 * 60 * 1000 }) {
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(zipPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
+    let settled = false;
 
-    output.on('close', () => resolve({ sizeBytes: archive.pointer() }));
-    output.on('error', reject);
-    archive.on('error', reject);
+    const finish = (error, result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(result);
+    };
+
+    const timer = setTimeout(() => {
+      const err = new Error(`ZIP creation exceeded timeout ${timeoutMs} ms`);
+      err.code = 'ARCHIVE_TIMEOUT';
+      try { archive.abort(); } catch (_) { /* ignore abort failure */ }
+      try { output.destroy(); } catch (_) { /* ignore destroy failure */ }
+      finish(err);
+    }, timeoutMs);
+    timer.unref?.();
+
+    output.on('close', () => finish(null, { sizeBytes: archive.pointer() }));
+    output.on('error', (err) => finish(err));
+    archive.on('error', (err) => finish(err));
 
     archive.pipe(output);
 
@@ -20,7 +38,10 @@ function createZip({ zipPath, files, manifest }) {
     }
 
     archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
-    archive.finalize();
+    const finalizeResult = archive.finalize();
+    if (finalizeResult && typeof finalizeResult.catch === 'function') {
+      finalizeResult.catch((err) => finish(err));
+    }
   });
 }
 

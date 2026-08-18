@@ -13,6 +13,10 @@ router.get('/:id', authenticate, requireApp(config.app.slug), ConversionControll
 router.get('/:id/download', authenticate, requireApp(config.app.slug), ConversionController.download);
 router.get('/:id/files/:fileId', authenticate, requireApp(config.app.slug), ConversionController.fileContent);
 
+router.post('/:id/pause', authenticate, requireApp(config.app.slug), ConversionController.pause);
+router.post('/:id/continue', authenticate, requireApp(config.app.slug), ConversionController.continueBatch);
+router.post('/:id/cancel', authenticate, requireApp(config.app.slug), ConversionController.cancel);
+
 router.post(
   '/:sourceFormat/:targetFormat',
   authenticate,
