@@ -1,19 +1,27 @@
 import {
+  cancelConversionBatch,
+  continueConversionBatch,
   createConversionBatch,
   downloadConversionBatch,
   getConversionBatch,
   getConversionBatches,
   getConversionCapabilities,
   openConversionFile,
+  pauseConversionBatch,
 } from '../../services/conversion.service.js'
 
-export const ACTIVE_STATUSES = ['UPLOADING', 'VALIDATING', 'QUEUED', 'PROCESSING']
+export const ACTIVE_STATUSES = ['UPLOADING', 'VALIDATING', 'QUEUED', 'PROCESSING', 'PAUSING', 'COMPLETING']
+export const PAUSABLE_STATUSES = ['QUEUED', 'VALIDATING', 'PROCESSING']
+export const CANCELLABLE_STATUSES = ['QUEUED', 'VALIDATING', 'PROCESSING', 'PAUSING', 'PAUSED', 'COMPLETING']
 
 export const STATUS_LABELS = {
   UPLOADING: 'Mengunggah',
   VALIDATING: 'Validasi struktur',
   QUEUED: 'Menunggu antrian',
   PROCESSING: 'Sedang diproses',
+  PAUSING: 'Menjeda proses',
+  PAUSED: 'Dijeda',
+  COMPLETING: 'Menyelesaikan berkas',
   COMPLETED: 'Selesai',
   REJECTED: 'Ditolak',
   FAILED: 'Gagal',
@@ -25,6 +33,9 @@ export const STATUS_TONE = {
   VALIDATING: 'progress',
   QUEUED: 'progress',
   PROCESSING: 'progress',
+  PAUSING: 'progress',
+  PAUSED: 'neutral',
+  COMPLETING: 'progress',
   COMPLETED: 'success',
   REJECTED: 'danger',
   FAILED: 'danger',
@@ -54,17 +65,49 @@ export function formatHistoryDate(value) {
 
 export function getHistoryStatusVariant(status) {
   if (status === 'COMPLETED') return 'active'
-  if (ACTIVE_STATUSES.includes(status)) return 'pending'
+  if (ACTIVE_STATUSES.includes(status) || status === 'PAUSED') return 'pending'
   return 'inactive'
 }
 
 export function getActiveStepIndex(status) {
   if (!status) return 0
   if (status === 'UPLOADING') return 1
-  if (['VALIDATING', 'QUEUED', 'PROCESSING'].includes(status)) return 2
+  if (['VALIDATING', 'QUEUED', 'PROCESSING', 'PAUSING', 'PAUSED', 'COMPLETING'].includes(status)) return 2
   if (status === 'COMPLETED') return 3
   if (TERMINAL_DANGER_STATUSES.includes(status)) return 2
   return 0
+}
+
+export function findCapabilityForBatch(capabilities, batch) {
+  if (!batch) return null
+  return (
+    (capabilities ?? []).find(
+      (item) =>
+        item.target_format === batch.target_format &&
+        item.source_formats.includes(batch.source_format),
+    ) ?? null
+  )
+}
+
+export function canPauseBatch(batch, supportsPauseResume) {
+  return Boolean(supportsPauseResume) && PAUSABLE_STATUSES.includes(batch?.status)
+}
+
+export function canContinueBatch(batch) {
+  return batch?.status === 'PAUSED'
+}
+
+export function canCancelBatch(batch) {
+  return CANCELLABLE_STATUSES.includes(batch?.status)
+}
+
+export function formatPauseExpiry(seconds) {
+  if (!seconds || seconds <= 0) return ''
+  const totalMinutes = Math.floor(seconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours <= 0) return `${minutes} menit`
+  return `${hours} jam ${minutes} menit`
 }
 
 export function capabilityKey(capability) {
@@ -118,6 +161,18 @@ export async function convert({ selectedCapability, isBatchMode, folderName, tem
 
 export async function downloadConversion(batch) {
   return downloadConversionBatch(batch)
+}
+
+export async function pauseConversion(batch) {
+  return pauseConversionBatch(batch.id)
+}
+
+export async function continueConversion(batch) {
+  return continueConversionBatch(batch.id)
+}
+
+export async function cancelConversion(batch) {
+  return cancelConversionBatch(batch.id)
 }
 
 export async function previewConversion(batchDetail) {

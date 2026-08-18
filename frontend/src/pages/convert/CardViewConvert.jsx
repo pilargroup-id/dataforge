@@ -1,5 +1,5 @@
 import { Chart01, FileText01 } from '../../components/layoute/TemplateIcons.jsx'
-import { PROGRESS_STEPS } from './convert.service.js'
+import { PROGRESS_STEPS, formatPauseExpiry } from './convert.service.js'
 
 function CardViewConvert({
   resultRef,
@@ -107,6 +107,9 @@ function CardViewConvert({
               {currentBatch.source_format} → {currentBatch.target_format} ·{' '}
               {currentBatch.processed_input_files ?? 0}/{currentBatch.total_input_files ?? 0} file
               diproses
+              {currentBatch.status === 'PAUSED' && formatPauseExpiry(currentBatch.pause_expires_in_seconds)
+                ? ` · sisa waktu ${formatPauseExpiry(currentBatch.pause_expires_in_seconds)} sebelum data dihapus`
+                : ''}
             </p>
           )}
         </div>

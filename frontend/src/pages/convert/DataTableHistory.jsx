@@ -86,6 +86,12 @@ function DataTableHistory({
         render: (row) => formatHistoryDate(row.created_at),
       },
       {
+        key: 'created_by',
+        header: 'Created By',
+        nowrap: true,
+        render: (row) => row.created_by_name || '-',
+      },
+      {
         key: 'timeline',
         header: 'Timeline Proses',
         minWidth: 180,

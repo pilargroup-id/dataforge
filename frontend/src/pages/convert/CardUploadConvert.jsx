@@ -1,6 +1,13 @@
 import { Dropdown, TextField } from '../../components/forms'
 import Upload from '../../components/forms/Upload.jsx'
-import { Download, Eye, RefreshCw05 } from '../../components/layoute/TemplateIcons.jsx'
+import {
+  Download,
+  Eye,
+  Pause,
+  Play,
+  RefreshCw05,
+  XClose,
+} from '../../components/layoute/TemplateIcons.jsx'
 
 function CardUploadConvert({
   selectedKey,
@@ -20,6 +27,15 @@ function CardUploadConvert({
   downloading,
   onDownload,
   resultRef,
+  canPause,
+  canContinue,
+  canCancel,
+  pausing,
+  continuing,
+  cancelling,
+  onPause,
+  onContinue,
+  onCancel,
 }) {
   return (
     <div className="convert-page__panel">
@@ -103,6 +119,42 @@ function CardUploadConvert({
             <Eye size={18} aria-hidden="true" />
             Output
           </button>
+
+          {canPause ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline"
+              onClick={onPause}
+              disabled={pausing}
+            >
+              <Pause size={18} aria-hidden="true" />
+              {pausing ? 'Menjeda...' : 'Pause'}
+            </button>
+          ) : null}
+
+          {canContinue ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline"
+              onClick={onContinue}
+              disabled={continuing}
+            >
+              <Play size={18} aria-hidden="true" />
+              {continuing ? 'Melanjutkan...' : 'Lanjutkan'}
+            </button>
+          ) : null}
+
+          {canCancel ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline convert-page__btn--danger"
+              onClick={onCancel}
+              disabled={cancelling}
+            >
+              <XClose size={18} aria-hidden="true" />
+              {cancelling ? 'Membatalkan...' : 'Batalkan'}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

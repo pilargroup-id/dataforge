@@ -5,6 +5,7 @@ import {
   AlertCircle,
   CheckCircle,
   FileText01,
+  Pause,
   RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
 import CardUploadConvert from './CardUploadConvert.jsx'
@@ -17,13 +18,21 @@ import {
   STATUS_LABELS,
   STATUS_TONE,
   TERMINAL_DANGER_STATUSES,
+  cancelConversion,
+  canCancelBatch,
+  canContinueBatch,
+  canPauseBatch,
   capabilityKey,
+  continueConversion,
   convert,
   downloadConversion,
   fetchConversionBatch,
   fetchConversionCapabilities,
   fetchConversionHistory,
+  findCapabilityForBatch,
+  formatPauseExpiry,
   getActiveStepIndex,
+  pauseConversion,
   previewConversion,
 } from './convert.service.js'
 
@@ -50,6 +59,9 @@ function ConvertPage({ activePage }) {
 
   const [currentBatch, setCurrentBatch] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  const [pausing, setPausing] = useState(false)
+  const [continuing, setContinuing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const resultRef = useRef(null)
 
   const [historyBatches, setHistoryBatches] = useState([])
@@ -153,6 +165,12 @@ function ConvertPage({ activePage }) {
     label: template.name || template.code,
   }))
 
+  const currentBatchCapability = useMemo(
+    () => findCapabilityForBatch(capabilities, currentBatch),
+    [capabilities, currentBatch],
+  )
+  const supportsPauseResume = currentBatchCapability?.supports_pause_resume ?? false
+
   const handleFilesChange = (nextFiles) => {
     setFormError('')
     if (Array.isArray(nextFiles)) {
@@ -199,6 +217,59 @@ function ConvertPage({ activePage }) {
       setFormError(error.message || 'Gagal mengunduh hasil konversi')
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handlePause = async () => {
+    if (!currentBatch) return
+    setFormError('')
+    setPausing(true)
+    try {
+      const updated = await pauseConversion(currentBatch)
+      setCurrentBatch(updated)
+    } catch (error) {
+      setFormError(error.message || 'Gagal menjeda konversi')
+    } finally {
+      setPausing(false)
+    }
+  }
+
+  const handleContinue = async () => {
+    if (!currentBatch) return
+    setFormError('')
+    setContinuing(true)
+    try {
+      const updated = await continueConversion(currentBatch)
+      setCurrentBatch(updated)
+      setHistoryRefreshKey((key) => key + 1)
+    } catch (error) {
+      if (error.code === 'PAUSED_BATCH_EXPIRED') {
+        setCurrentBatch(null)
+        setHistoryRefreshKey((key) => key + 1)
+      }
+      setFormError(error.message || 'Gagal melanjutkan konversi')
+    } finally {
+      setContinuing(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!currentBatch) return
+    const confirmed = window.confirm(
+      'Batalkan konversi ini? Seluruh data batch akan dihapus permanen dan tidak dapat dikembalikan.',
+    )
+    if (!confirmed) return
+
+    setFormError('')
+    setCancelling(true)
+    try {
+      await cancelConversion(currentBatch)
+      setCurrentBatch(null)
+      setHistoryRefreshKey((key) => key + 1)
+    } catch (error) {
+      setFormError(error.message || 'Gagal membatalkan konversi')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -250,9 +321,12 @@ function ConvertPage({ activePage }) {
     setHistoryPage(1)
   }
 
-  const progressPercent = currentBatch?.total_input_files
-    ? Math.round(((currentBatch.processed_input_files ?? 0) / currentBatch.total_input_files) * 100)
-    : currentBatch?.progress_percent ?? 0
+  const progressPercent =
+    currentBatch?.progress_percent !== undefined && currentBatch?.progress_percent !== null
+      ? Math.round(Number(currentBatch.progress_percent))
+      : currentBatch?.total_input_files
+        ? Math.round(((currentBatch.processed_input_files ?? 0) / currentBatch.total_input_files) * 100)
+        : 0
 
   const statusTone = STATUS_TONE[currentBatch?.status] ?? 'neutral'
   const isBatchActive = currentBatch ? ACTIVE_STATUSES.includes(currentBatch.status) : false
@@ -271,6 +345,14 @@ function ConvertPage({ activePage }) {
       subtitle: 'Mulai konversi untuk melihat hasilnya di sini.',
       tone: 'neutral',
     }
+  } else if (currentBatch.status === 'PAUSING') {
+    resultSummary = {
+      icon: RefreshCw05,
+      title: currentBatch.batch_name,
+      subtitle: 'Menyelesaikan unit kerja aktif sampai checkpoint aman sebelum berhenti...',
+      tone: 'progress',
+      spin: true,
+    }
   } else if (isBatchActive) {
     resultSummary = {
       icon: RefreshCw05,
@@ -278,6 +360,16 @@ function ConvertPage({ activePage }) {
       subtitle: 'Sedang diproses, mohon tunggu...',
       tone: 'progress',
       spin: true,
+    }
+  } else if (currentBatch.status === 'PAUSED') {
+    const remaining = formatPauseExpiry(currentBatch.pause_expires_in_seconds)
+    resultSummary = {
+      icon: Pause,
+      title: currentBatch.batch_name,
+      subtitle: remaining
+        ? `Dijeda. Klik Lanjutkan untuk melanjutkan dari checkpoint terakhir. Data akan dihapus dalam ${remaining} jika tidak dilanjutkan.`
+        : 'Dijeda. Klik Lanjutkan untuk melanjutkan dari checkpoint terakhir.',
+      tone: 'neutral',
     }
   } else if (currentBatch.status === 'COMPLETED') {
     resultSummary = {
@@ -333,6 +425,15 @@ function ConvertPage({ activePage }) {
               downloading={downloading}
               onDownload={handleDownload}
               resultRef={resultRef}
+              canPause={canPauseBatch(currentBatch, supportsPauseResume)}
+              canContinue={canContinueBatch(currentBatch)}
+              canCancel={canCancelBatch(currentBatch)}
+              pausing={pausing}
+              continuing={continuing}
+              cancelling={cancelling}
+              onPause={handlePause}
+              onContinue={handleContinue}
+              onCancel={handleCancel}
             />
 
             <CardViewConvert

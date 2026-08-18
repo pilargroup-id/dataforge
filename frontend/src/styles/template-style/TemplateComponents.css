@@ -6141,6 +6141,16 @@ select {
   background: rgba(24, 43, 88, 0.04);
 }
 
+.convert-page__btn--danger {
+  border-color: rgba(231, 111, 81, 0.35);
+  color: #b6431f;
+}
+
+.convert-page__btn--danger:hover:not(:disabled) {
+  border-color: rgba(231, 111, 81, 0.55);
+  background: rgba(231, 111, 81, 0.08);
+}
+
 @media (max-width: 1024px) {
   .convert-page__grid {
     grid-template-columns: 1fr;

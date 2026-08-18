@@ -18,6 +18,21 @@ export async function getConversionBatch(id) {
   return response?.data ?? null
 }
 
+export async function pauseConversionBatch(id) {
+  const response = await apiFetch(`/api/conversions/${id}/pause`, { method: 'POST' })
+  return response?.data ?? null
+}
+
+export async function continueConversionBatch(id) {
+  const response = await apiFetch(`/api/conversions/${id}/continue`, { method: 'POST' })
+  return response?.data ?? null
+}
+
+export async function cancelConversionBatch(id) {
+  const response = await apiFetch(`/api/conversions/${id}/cancel`, { method: 'POST' })
+  return response?.data ?? null
+}
+
 export async function getConversionBatches({ page = 1, limit = 5 } = {}) {
   const query = new URLSearchParams({ page: String(page), limit: String(limit) }).toString()
   const response = await apiFetch(`/api/conversions?${query}`)
