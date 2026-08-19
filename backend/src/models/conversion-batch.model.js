@@ -182,13 +182,82 @@ async function list({ userId, isIT, page = 1, limit = 20 }) {
   };
 }
 
+
+async function listJsonlSourceBatches({ userId, isIT, page = 1, limit = 20 }) {
+  const pool = requireDb();
+  const offset = (page - 1) * limit;
+  const ownerClause = isIT ? '' : 'AND cb.created_by = ?';
+  const baseParams = isIT ? [] : [userId];
+
+  const [countRows] = await pool.query(
+    `SELECT COUNT(*) AS total
+     FROM conversion_batches cb
+     WHERE UPPER(cb.target_format) = 'JSONL'
+     ${ownerClause}`,
+    baseParams
+  );
+
+  const [rows] = await pool.query(
+    `SELECT
+       cb.id,
+       cb.batch_name,
+       cb.original_folder_name,
+       cb.source_format,
+       cb.target_format,
+       cb.status,
+       cb.total_input_files,
+       cb.total_output_files,
+       cb.total_records,
+       cb.progress_percent,
+       cb.completed_at,
+       cb.expires_at,
+       cb.deleted_at,
+       cb.created_by,
+       cb.created_by_name,
+       cb.created_at,
+       cb.updated_at,
+       (
+         SELECT COUNT(*)
+         FROM conversion_files cf
+         WHERE cf.batch_id = cb.id
+           AND cf.file_role = 'OUTPUT'
+           AND UPPER(COALESCE(cf.format, '')) = 'JSONL'
+       ) AS output_jsonl_file_count,
+       (
+         SELECT COALESCE(SUM(cf.size_bytes), 0)
+         FROM conversion_files cf
+         WHERE cf.batch_id = cb.id
+           AND cf.file_role = 'OUTPUT'
+           AND UPPER(COALESCE(cf.format, '')) = 'JSONL'
+       ) AS output_jsonl_size_bytes
+     FROM conversion_batches cb
+     WHERE UPPER(cb.target_format) = 'JSONL'
+     ${ownerClause}
+     ORDER BY cb.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [...baseParams, limit, offset]
+  );
+
+  return {
+    rows,
+    total: Number(countRows[0]?.total || 0),
+  };
+}
+
 async function listExpired(now) {
   const pool = requireDb();
   const [rows] = await pool.query(
-    `SELECT * FROM conversion_batches
-     WHERE status = 'COMPLETED'
-       AND expires_at IS NOT NULL
-       AND expires_at <= ?`,
+    `SELECT cb.*
+     FROM conversion_batches cb
+     WHERE cb.status = 'COMPLETED'
+       AND cb.expires_at IS NOT NULL
+       AND cb.expires_at <= ?
+       AND NOT EXISTS (
+         SELECT 1
+         FROM bigquery_load_jobs bq
+         WHERE bq.conversion_batch_id = cb.id
+           AND bq.status IN ('QUEUED', 'VALIDATING', 'LOADING')
+       )`,
     [now]
   );
   return rows;
@@ -219,6 +288,7 @@ module.exports = {
   transitionStatus,
   updateProgress,
   list,
+  listJsonlSourceBatches,
   listExpired,
   listExpiredPaused,
   deleteById,

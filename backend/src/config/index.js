@@ -65,6 +65,10 @@ const config = {
     connectionLimit: numberEnv('DB_CONNECTION_LIMIT', 10),
   },
 
+  bigquery: {
+    projectId: process.env.BIGQUERY_PROJECT_ID || '',
+  },
+
   dev: {
     authEnabled: process.env.DEV_AUTH_ENABLED === 'true',
     authUsername: process.env.DEV_AUTH_USERNAME || '',

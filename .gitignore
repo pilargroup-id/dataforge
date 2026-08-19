@@ -52,6 +52,8 @@ backend/storage/temp/*
 !backend/storage/temp/.gitkeep
 backend/storage/results/*
 !backend/storage/results/.gitkeep
+backend/storage/app/google/*.json
+!backend/storage/app/google/.gitkeep
 
 # =========================
 # OS Files

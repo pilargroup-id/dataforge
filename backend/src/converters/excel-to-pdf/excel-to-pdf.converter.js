@@ -150,7 +150,7 @@ async function convert({
 
     if (onProgress) {
       await onProgress({
-        processedFiles: 1,
+        processedFiles: processed === totalRecords ? 1 : 0,
         totalFiles: 1,
         processedRecords: processed,
         totalRecords,

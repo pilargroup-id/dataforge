@@ -102,6 +102,7 @@ async function processBatch({
       resumeState,
       existingOutputs,
       maxPartSizeBytes: dataforgeConfig.output.maxPartSizeBytes,
+      checkpointIntervalRows: dataforgeConfig.output.checkpointIntervalRows,
       onValidated: async (meta = {}) => {
         if (meta.total_records !== undefined) {
           const alive = await ConversionBatchModel.updateProgress(batchId, {
@@ -113,8 +114,12 @@ async function processBatch({
         await transitionOrControl(batchId, [STATUS.VALIDATING], STATUS.PROCESSING);
       },
       onOutput: async (file) => {
-        await assertRunnable(batchId);
+        const batch = await ConversionBatchModel.findById(batchId);
+        if (!batch) throw controlError('CONVERSION_CANCELLED', 'Conversion batch was cancelled');
+
         await ConversionFileModel.replaceGeneratedFile(batchId, outputRow(batchId, file, targetFormat));
+
+        if (batch.status === STATUS.PAUSING || batch.status === STATUS.PAUSED) return;
         await assertRunnable(batchId);
       },
       onProgress: async ({
