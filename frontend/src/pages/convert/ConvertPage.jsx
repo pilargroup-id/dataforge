@@ -8,6 +8,7 @@ import {
   Pause,
   RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
+import DialogCancel from '../../components/Dialog/dialog-convert/DialogCancel.jsx'
 import CardUploadConvert from './CardUploadConvert.jsx'
 import CardViewConvert from './CardViewConvert.jsx'
 import DataTableHistory from './DataTableHistory.jsx'
@@ -62,6 +63,7 @@ function ConvertPage({ activePage }) {
   const [pausing, setPausing] = useState(false)
   const [continuing, setContinuing] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const resultRef = useRef(null)
 
   const [historyBatches, setHistoryBatches] = useState([])
@@ -253,13 +255,18 @@ function ConvertPage({ activePage }) {
     }
   }
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!currentBatch) return
-    const confirmed = window.confirm(
-      'Batalkan konversi ini? Seluruh data batch akan dihapus permanen dan tidak dapat dikembalikan.',
-    )
-    if (!confirmed) return
+    setCancelDialogOpen(true)
+  }
 
+  const handleCancelDialogClose = () => {
+    if (cancelling) return
+    setCancelDialogOpen(false)
+  }
+
+  const handleCancelConfirm = async () => {
+    if (!currentBatch) return
     setFormError('')
     setCancelling(true)
     try {
@@ -270,6 +277,7 @@ function ConvertPage({ activePage }) {
       setFormError(error.message || 'Gagal membatalkan konversi')
     } finally {
       setCancelling(false)
+      setCancelDialogOpen(false)
     }
   }
 
@@ -468,6 +476,13 @@ function ConvertPage({ activePage }) {
         onDownload={handleHistoryDownload}
         downloadingId={downloadingHistoryId}
         openingId={openingHistoryId}
+      />
+
+      <DialogCancel
+        isOpen={cancelDialogOpen}
+        onClose={handleCancelDialogClose}
+        onConfirm={handleCancelConfirm}
+        loading={cancelling}
       />
     </section>
   )
