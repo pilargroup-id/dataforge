@@ -7,12 +7,13 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development node --watch src/server.js",
     "start": "cross-env NODE_ENV=production node src/server.js",
-    "check": "node --check src/server.js && node --check src/app.js && node --check src/routes/index.js && node --check src/services/conversion.service.js && node --check src/services/permission.service.js && node --check src/converters/converter.registry.js && node --check src/templates/template.registry.js"
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/routes/index.js && node --check src/services/conversion.service.js && node --check src/services/permission.service.js && node --check src/services/bigquery.service.js && node --check src/converters/converter.registry.js && node --check src/templates/template.registry.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^8.1.1",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

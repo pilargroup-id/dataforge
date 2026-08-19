@@ -27,6 +27,7 @@ function listCapabilities() {
     supports_merge: converter.targetFormat === 'JSONL',
     supports_schema_validation: true,
     supports_pause_resume: converter.supportsPauseResume === true,
+    supports_cancel: true,
     default_template_code: converter.defaultTemplateCode || null,
     templates: converter.templateType ? TemplateRegistry.listByType(converter.templateType) : [],
   }));
