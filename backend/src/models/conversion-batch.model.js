@@ -152,11 +152,21 @@ async function updateProgress(id, { processedInputFiles, progressPercent, totalR
   return result.affectedRows > 0;
 }
 
-async function list({ userId, isIT, page = 1, limit = 20 }) {
+async function list({ userId, isIT, page = 1, limit = 20, targetFormat }) {
   const pool = requireDb();
   const offset = (page - 1) * limit;
-  const where = isIT ? '' : 'WHERE created_by = ?';
-  const baseParams = isIT ? [] : [userId];
+
+  const conditions = [];
+  const baseParams = [];
+  if (!isIT) {
+    conditions.push('created_by = ?');
+    baseParams.push(userId);
+  }
+  if (targetFormat) {
+    conditions.push('UPPER(target_format) = ?');
+    baseParams.push(String(targetFormat).trim().toUpperCase());
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const [countRows] = await pool.query(
     `SELECT COUNT(*) AS total FROM conversion_batches ${where}`,

@@ -8,7 +8,7 @@ import {
   implementedNavigationPaths,
   primaryNavigationItems,
   secondaryNavigationItems,
-} from '../../services/layoutes/navigation.js'
+} from '../../services/layoutes/Navigation.js'
 import '../../styles/template-style/TemplateComponents.css'
 
 function filterItemsByPermission(items, hasModule) {

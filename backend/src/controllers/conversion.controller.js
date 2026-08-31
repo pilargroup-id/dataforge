@@ -133,7 +133,10 @@ async function list(req, res, next) {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
-    const result = await ConversionBatchModel.list({ userId: req.user.id, isIT: isITUser(req.user), page, limit });
+    const targetFormat = req.query.target_format ? String(req.query.target_format).trim() : undefined;
+    const result = await ConversionBatchModel.list({
+      userId: req.user.id, isIT: isITUser(req.user), page, limit, targetFormat,
+    });
     return R.paginated(res, result.rows.map(normalizeBatch), {
       page, limit, total: result.total, totalPages: Math.ceil(result.total / limit) || 1,
     }, 'Conversion batches loaded');

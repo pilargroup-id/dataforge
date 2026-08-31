@@ -1,10 +1,21 @@
-import { Chart01, FileText01 } from '../../components/layoute/TemplateIcons.jsx'
+import { useState } from 'react'
+
+import {
+  Download,
+  Eye,
+  Pause,
+  Play,
+  RefreshCw05,
+  Upload,
+  XClose,
+} from '../../components/layoute/TemplateIcons.jsx'
 import { PROGRESS_STEPS, formatPauseExpiry } from './convert.service.js'
+import DialogUploadBigquery from './excel-to-jsonl/DialogUploadBigquery.jsx'
 
 function CardViewConvert({
+  targetFormat,
   resultRef,
   currentBatch,
-  historyMeta,
   progressPercent,
   statusTone,
   activeStepIndex,
@@ -13,32 +24,27 @@ function CardViewConvert({
   progressHeading,
   validationErrors,
   resultSummary,
+  submitting,
+  downloading,
+  onDownload,
+  canPause,
+  canContinue,
+  canCancel,
+  pausing,
+  continuing,
+  cancelling,
+  onPause,
+  onContinue,
+  onCancel,
 }) {
   const ResultIcon = resultSummary.icon
+  const [isBigQueryDialogOpen, setBigQueryDialogOpen] = useState(false)
+  const canUploadToBigQuery = targetFormat === 'JSONL'
+  const bigQueryUploadDisabled =
+    !currentBatch || currentBatch.status !== 'COMPLETED' || !currentBatch.download_available
 
   return (
     <aside className="convert-page__panel convert-page__panel--status" ref={resultRef}>
-      <div className="convert-page__stats">
-        <div className="convert-page__stat">
-          <span className="convert-page__stat-icon">
-            <FileText01 size={18} aria-hidden="true" />
-          </span>
-          <div className="convert-page__stat-copy">
-            <p className="convert-page__stat-label">Batch Saat Ini</p>
-            <p className="convert-page__stat-value">{currentBatch?.batch_name ?? '-'}</p>
-          </div>
-        </div>
-        <div className="convert-page__stat">
-          <span className="convert-page__stat-icon">
-            <Chart01 size={18} aria-hidden="true" />
-          </span>
-          <div className="convert-page__stat-copy">
-            <p className="convert-page__stat-label">Total Diproses</p>
-            <p className="convert-page__stat-value">{historyMeta.total ?? '-'}</p>
-          </div>
-        </div>
-      </div>
-
       <div className="convert-page__progress-card">
         <div className="convert-page__progress-card-header">
           <p className="convert-page__progress-heading">{progressHeading}</p>
@@ -77,13 +83,7 @@ function CardViewConvert({
         </div>
 
         <div className="convert-page__progress-content">
-          {!currentBatch ? (
-            <ul className="convert-page__hints">
-              <li>Setiap baris pada file akan dibuat menjadi satu dokumen.</li>
-              <li>Pastikan header kolom sesuai dengan template yang dipilih.</li>
-              <li>Hasil konversi akan dikemas dalam satu file ZIP sesuai nama batch.</li>
-            </ul>
-          ) : currentBatch.status === 'REJECTED' || currentBatch.status === 'FAILED' ? (
+          {!currentBatch ? null : currentBatch.status === 'REJECTED' || currentBatch.status === 'FAILED' ? (
             <div className="convert-page__validation">
               <p>{currentBatch.error_message || 'Batch gagal diproses.'}</p>
               {validationErrors?.invalid_files?.length > 0 ? (
@@ -128,6 +128,100 @@ function CardViewConvert({
           <span className="convert-page__result-summary-subtitle">{resultSummary.subtitle}</span>
         </div>
       </div>
+
+      <div className="convert-page__actionbar">
+        <div className="convert-page__actionbar-buttons">
+          <button type="submit" className="users-table-card__action" disabled={submitting}>
+            <RefreshCw05
+              size={18}
+              aria-hidden="true"
+              className={submitting ? 'convert-page__spin' : ''}
+            />
+            {submitting ? 'Mengunggah...' : 'Convert'}
+          </button>
+
+          <button
+            type="button"
+            className="convert-page__btn convert-page__btn--outline"
+            onClick={onDownload}
+            disabled={
+              !currentBatch ||
+              currentBatch.status !== 'COMPLETED' ||
+              !currentBatch.download_available ||
+              downloading
+            }
+          >
+            <Download size={18} aria-hidden="true" />
+            {downloading ? 'Mengunduh...' : 'Download'}
+          </button>
+
+          <button
+            type="button"
+            className="convert-page__btn convert-page__btn--outline"
+            onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            disabled={!currentBatch}
+          >
+            <Eye size={18} aria-hidden="true" />
+            Output
+          </button>
+
+          {canUploadToBigQuery ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline"
+              onClick={() => setBigQueryDialogOpen(true)}
+              disabled={bigQueryUploadDisabled}
+            >
+              <Upload size={18} aria-hidden="true" />
+              Upload Big Query
+            </button>
+          ) : null}
+
+          {canPause ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline"
+              onClick={onPause}
+              disabled={pausing}
+            >
+              <Pause size={18} aria-hidden="true" />
+              {pausing ? 'Menjeda...' : 'Pause'}
+            </button>
+          ) : null}
+
+          {canContinue ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline"
+              onClick={onContinue}
+              disabled={continuing}
+            >
+              <Play size={18} aria-hidden="true" />
+              {continuing ? 'Melanjutkan...' : 'Lanjutkan'}
+            </button>
+          ) : null}
+
+          {canCancel ? (
+            <button
+              type="button"
+              className="convert-page__btn convert-page__btn--outline convert-page__btn--danger"
+              onClick={onCancel}
+              disabled={cancelling}
+            >
+              <XClose size={18} aria-hidden="true" />
+              {cancelling ? 'Membatalkan...' : 'Batalkan'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {canUploadToBigQuery ? (
+        <DialogUploadBigquery
+          isOpen={isBigQueryDialogOpen}
+          batch={currentBatch}
+          onClose={() => setBigQueryDialogOpen(false)}
+        />
+      ) : null}
     </aside>
   )
 }

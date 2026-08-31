@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 import {
   AlertCircle,
@@ -8,9 +7,6 @@ import {
   Pause,
   RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
-import CardUploadConvert from './CardUploadConvert.jsx'
-import CardViewConvert from './CardViewConvert.jsx'
-import DataTableHistory from './DataTableHistory.jsx'
 import {
   ACTIVE_STATUSES,
   HISTORY_PAGE_SIZE_OPTIONS,
@@ -27,7 +23,7 @@ import {
   convert,
   downloadConversion,
   fetchConversionBatch,
-  fetchConversionCapabilities,
+  fetchConversionCapabilitiesByFormat,
   fetchConversionHistory,
   findCapabilityForBatch,
   formatPauseExpiry,
@@ -36,15 +32,7 @@ import {
   previewConversion,
 } from './convert.service.js'
 
-const defaultActivePage = {
-  title: 'Convert',
-  eyebrow: 'File Conversion',
-}
-
-function ConvertPage({ activePage }) {
-  const outletContext = useOutletContext() ?? {}
-  const resolvedActivePage = activePage ?? outletContext.activePage ?? defaultActivePage
-
+function useConvertWorkspace(targetFormat) {
   const [capabilities, setCapabilities] = useState([])
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(true)
   const [capabilitiesError, setCapabilitiesError] = useState('')
@@ -81,7 +69,7 @@ function ConvertPage({ activePage }) {
       setCapabilitiesLoading(true)
       setCapabilitiesError('')
       try {
-        const { capabilities: data, defaultKey } = await fetchConversionCapabilities()
+        const { capabilities: data, defaultKey } = await fetchConversionCapabilitiesByFormat(targetFormat)
         if (!isMounted) return
         setCapabilities(data)
         if (defaultKey) setSelectedKey(defaultKey)
@@ -98,7 +86,7 @@ function ConvertPage({ activePage }) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [targetFormat])
 
   useEffect(() => {
     if (!currentBatch || !ACTIVE_STATUSES.includes(currentBatch.status)) {
@@ -127,7 +115,11 @@ function ConvertPage({ activePage }) {
       setHistoryLoading(true)
       setHistoryError('')
       try {
-        const { data, meta } = await fetchConversionHistory({ page: historyPage, limit: historyPageSize })
+        const { data, meta } = await fetchConversionHistory({
+          page: historyPage,
+          limit: historyPageSize,
+          targetFormat,
+        })
         if (!isMounted) return
         setHistoryBatches(data)
         setHistoryMeta(meta)
@@ -144,7 +136,7 @@ function ConvertPage({ activePage }) {
     return () => {
       isMounted = false
     }
-  }, [historyPage, historyPageSize, historyRefreshKey])
+  }, [targetFormat, historyPage, historyPageSize, historyRefreshKey])
 
   const allowedCapabilities = useMemo(() => capabilities.filter((item) => item.allowed), [capabilities])
 
@@ -387,90 +379,63 @@ function ConvertPage({ activePage }) {
     }
   }
 
-  return (
-    <section className="dashboard-panel users-table-card convert-page" aria-label={resolvedActivePage.title}>
-      <div className="users-table-card__header">
-        <div>
-          <p className="dashboard-panel__eyebrow">{resolvedActivePage.eyebrow}</p>
-          <h1 className="dashboard-panel__title">{resolvedActivePage.title}</h1>
-        </div>
-      </div>
+  return {
+    capabilitiesLoading,
+    capabilitiesError,
+    allowedCapabilities,
 
-      <form className="convert-page__body" onSubmit={handleSubmit}>
-        {capabilitiesLoading ? (
-          <p className="convert-page__hint">Memuat jenis konversi yang tersedia...</p>
-        ) : capabilitiesError ? (
-          <p className="convert-page__error">{capabilitiesError}</p>
-        ) : allowedCapabilities.length === 0 ? (
-          <p className="convert-page__hint">
-            Anda belum memiliki akses ke modul convert manapun. Hubungi admin IT untuk permintaan akses.
-          </p>
-        ) : (
-          <div className="convert-page__grid">
-            <CardUploadConvert
-              selectedKey={selectedKey}
-              capabilityOptions={capabilityOptions}
-              onConversionChange={handleConversionChange}
-              isBatchMode={isBatchMode}
-              folderName={folderName}
-              onFolderNameChange={setFolderName}
-              templateOptions={templateOptions}
-              templateCode={templateCode}
-              onTemplateCodeChange={setTemplateCode}
-              uploadResetKey={uploadResetKey}
-              onFilesChange={handleFilesChange}
-              formError={formError}
-              submitting={submitting}
-              currentBatch={currentBatch}
-              downloading={downloading}
-              onDownload={handleDownload}
-              resultRef={resultRef}
-              canPause={canPauseBatch(currentBatch, supportsPauseResume)}
-              canContinue={canContinueBatch(currentBatch)}
-              canCancel={canCancelBatch(currentBatch)}
-              pausing={pausing}
-              continuing={continuing}
-              cancelling={cancelling}
-              onPause={handlePause}
-              onContinue={handleContinue}
-              onCancel={handleCancel}
-            />
+    selectedKey,
+    capabilityOptions,
+    handleConversionChange,
+    isBatchMode,
+    folderName,
+    setFolderName,
+    templateOptions,
+    templateCode,
+    setTemplateCode,
+    uploadResetKey,
+    handleFilesChange,
+    formError,
+    submitting,
+    handleSubmit,
 
-            <CardViewConvert
-              resultRef={resultRef}
-              currentBatch={currentBatch}
-              historyMeta={historyMeta}
-              progressPercent={progressPercent}
-              statusTone={statusTone}
-              activeStepIndex={activeStepIndex}
-              stepperFillPercent={stepperFillPercent}
-              isDangerStep={isDangerStep}
-              progressHeading={progressHeading}
-              validationErrors={validationErrors}
-              resultSummary={resultSummary}
-            />
-          </div>
-        )}
-      </form>
+    currentBatch,
+    downloading,
+    handleDownload,
+    resultRef,
+    canPause: canPauseBatch(currentBatch, supportsPauseResume),
+    canContinue: canContinueBatch(currentBatch),
+    canCancel: canCancelBatch(currentBatch),
+    pausing,
+    continuing,
+    cancelling,
+    handlePause,
+    handleContinue,
+    handleCancel,
 
-      <DataTableHistory
-        batches={historyBatches}
-        loading={historyLoading}
-        error={historyError}
-        page={historyPage}
-        pageSize={historyPageSize}
-        pageSizeOptions={HISTORY_PAGE_SIZE_OPTIONS}
-        meta={historyMeta}
-        onPageChange={setHistoryPage}
-        onPageSizeChange={handleHistoryPageSizeChange}
-        onRowClick={handleHistoryRowClick}
-        onView={handleViewBatch}
-        onDownload={handleHistoryDownload}
-        downloadingId={downloadingHistoryId}
-        openingId={openingHistoryId}
-      />
-    </section>
-  )
+    historyMeta,
+    progressPercent,
+    statusTone,
+    activeStepIndex,
+    stepperFillPercent,
+    isDangerStep,
+    progressHeading,
+    validationErrors,
+    resultSummary,
+
+    historyBatches,
+    historyLoading,
+    historyError,
+    historyPage,
+    setHistoryPage,
+    historyPageSize,
+    handleHistoryPageSizeChange,
+    handleHistoryRowClick,
+    handleViewBatch,
+    handleHistoryDownload,
+    downloadingHistoryId,
+    openingHistoryId,
+  }
 }
 
-export default ConvertPage
+export default useConvertWorkspace
