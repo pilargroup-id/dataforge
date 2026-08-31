@@ -44,4 +44,49 @@ async function listByBatchId(batchId) {
   return rows;
 }
 
-module.exports = { insertMany, listByBatchId };
+async function listByBatchIdAndRole(batchId, role) {
+  const pool = requireDb();
+  const [rows] = await pool.query(
+    'SELECT * FROM conversion_files WHERE batch_id = ? AND file_role = ? ORDER BY id ASC',
+    [batchId, role]
+  );
+  return rows;
+}
+
+async function findByIdAndBatchId(id, batchId) {
+  const pool = requireDb();
+  const [rows] = await pool.query(
+    'SELECT * FROM conversion_files WHERE id = ? AND batch_id = ? LIMIT 1',
+    [id, batchId]
+  );
+  return rows[0] || null;
+}
+
+async function replaceGeneratedFile(batchId, file) {
+  const pool = requireDb();
+  await pool.query(
+    `DELETE FROM conversion_files
+     WHERE batch_id = ? AND file_role = ? AND stored_name = ?`,
+    [batchId, file.file_role, file.stored_name]
+  );
+
+  await insertMany(batchId, [file]);
+}
+
+async function deleteGeneratedFiles(batchId) {
+  const pool = requireDb();
+  await pool.query(
+    `DELETE FROM conversion_files
+     WHERE batch_id = ? AND file_role IN ('OUTPUT', 'ARCHIVE')`,
+    [batchId]
+  );
+}
+
+module.exports = {
+  insertMany,
+  listByBatchId,
+  listByBatchIdAndRole,
+  findByIdAndBatchId,
+  replaceGeneratedFile,
+  deleteGeneratedFiles,
+};

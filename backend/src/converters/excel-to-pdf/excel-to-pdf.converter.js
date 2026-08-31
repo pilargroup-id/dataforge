@@ -12,7 +12,42 @@ function readWorkbook(filePath) {
   return { sheetName, rows, headers: rows.length ? Object.keys(rows[0]) : [] };
 }
 
-async function convert({ files, outputDir, batchName, templateCode, onValidated, onProgress }) {
+function buildPlannedGroups(groups) {
+  const duplicateNames = new Map();
+  const planned = [];
+  let index = 0;
+
+  for (const [orderNo, groupRows] of groups.entries()) {
+    index += 1;
+    const rawInvoiceNo = String(groupRows[0].__invoiceNo || `INV-${index}`).trim();
+    const safeOrderNo = sanitizeFileName(orderNo, `ORDER-${index}`);
+    const count = (duplicateNames.get(safeOrderNo) || 0) + 1;
+    duplicateNames.set(safeOrderNo, count);
+    const suffix = count > 1 ? `_${String(count).padStart(3, '0')}` : '';
+
+    planned.push({
+      index,
+      orderNo,
+      rawInvoiceNo,
+      groupRows,
+      pdfName: `${safeOrderNo}${suffix}.pdf`,
+    });
+  }
+
+  return planned;
+}
+
+async function convert({
+  files,
+  outputDir,
+  batchName,
+  templateCode,
+  onValidated,
+  onProgress,
+  onOutput,
+  resumeState = null,
+  existingOutputs = [],
+}) {
   if (files.length !== 1) {
     const err = new Error('EXCEL_TO_PDF hanya menerima 1 file Excel per batch');
     err.code = 'INPUT_FILE_COUNT_INVALID';
@@ -34,12 +69,12 @@ async function convert({ files, outputDir, batchName, templateCode, onValidated,
   }
 
   const columns = template.resolveColumns(headers);
-  if (onValidated) await onValidated({ headers, template_code: template.code });
-
   const groups = new Map();
+
   for (const row of rows) {
     const orderNo = String(row[columns.orderNo] ?? '').trim();
     if (!orderNo) continue;
+    row.__invoiceNo = String(row[columns.invoiceNo] || '').trim();
     if (!groups.has(orderNo)) groups.set(orderNo, []);
     groups.get(orderNo).push(row);
   }
@@ -50,41 +85,80 @@ async function convert({ files, outputDir, batchName, templateCode, onValidated,
     throw err;
   }
 
+  const plannedGroups = buildPlannedGroups(groups);
+  const totalRecords = plannedGroups.length;
+
+  if (onValidated) {
+    await onValidated({
+      headers,
+      template_code: template.code,
+      total_records: totalRecords,
+    });
+  }
+
+  const existingByName = new Map(existingOutputs.map((file) => [file.file_name, file]));
   const outputFiles = [];
-  const duplicateNames = new Map();
+  const lastCompletedIndex = Math.max(0, Number(resumeState?.last_completed_index || 0));
   let processed = 0;
 
-  for (const [orderNo, groupRows] of groups.entries()) {
-    const rawInvoiceNo = String(groupRows[0][columns.invoiceNo] || `INV-${processed + 1}`).trim();
-    const safeInvoiceNo = sanitizeFileName(rawInvoiceNo, `INV-${processed + 1}`);
-    const count = (duplicateNames.get(safeInvoiceNo) || 0) + 1;
-    duplicateNames.set(safeInvoiceNo, count);
-    const suffix = count > 1 ? `_${String(count).padStart(3, '0')}` : '';
-    const pdfName = `${safeInvoiceNo}${suffix}.pdf`;
+  for (const planned of plannedGroups) {
+    const { index, orderNo, rawInvoiceNo, groupRows, pdfName } = planned;
     const pdfPath = path.join(outputDir, pdfName);
+
+    if (index <= lastCompletedIndex) {
+      const existing = existingByName.get(pdfName);
+      if (!existing || !fs.existsSync(existing.file_path || pdfPath)) {
+        const err = new Error(`Checkpoint tidak konsisten. Output ${pdfName} tidak ditemukan.`);
+        err.code = 'RESUME_CHECKPOINT_INVALID';
+        throw err;
+      }
+
+      const existingPath = existing.file_path || pdfPath;
+      outputFiles.push({
+        file_name: pdfName,
+        file_path: existingPath,
+        size_bytes: existing.size_bytes || fs.statSync(existingPath).size,
+        records: existing.records || 1,
+        archive_name: `${sanitizeReadableFileName(batchName)}/${pdfName}`,
+      });
+      processed = index;
+      continue;
+    }
 
     await template.createInvoicePdf({
       outputPath: pdfPath,
       rows: groupRows,
       orderNo,
-      invoiceNo: rawInvoiceNo,
+      invoiceNo: rawInvoiceNo || `INV-${index}`,
       columns,
     });
 
-    processed += 1;
-    outputFiles.push({
+    const outputFile = {
       file_name: pdfName,
       file_path: pdfPath,
       size_bytes: fs.statSync(pdfPath).size,
       records: 1,
       archive_name: `${sanitizeReadableFileName(batchName)}/${pdfName}`,
-    });
+    };
+
+    outputFiles.push(outputFile);
+    processed = index;
+
+    if (onOutput) {
+      await onOutput(outputFile);
+    }
 
     if (onProgress) {
       await onProgress({
-        processedFiles: 1,
+        processedFiles: processed === totalRecords ? 1 : 0,
         totalFiles: 1,
-        progressPercent: Math.round((processed / groups.size) * 100),
+        processedRecords: processed,
+        totalRecords,
+        progressPercent: Math.round((processed / totalRecords) * 100),
+        checkpointData: {
+          last_completed_index: processed,
+          last_completed_key: orderNo,
+        },
       });
     }
   }
@@ -92,7 +166,7 @@ async function convert({ files, outputDir, batchName, templateCode, onValidated,
   return {
     schema: { headers, template_code: template.code },
     files: outputFiles,
-    totalRecords: groups.size,
+    totalRecords,
   };
 }
 
@@ -104,5 +178,6 @@ module.exports = {
   templateType: 'PDF',
   defaultTemplateCode: 'yose',
   inputMode: 'single',
+  supportsPauseResume: true,
   convert,
 };

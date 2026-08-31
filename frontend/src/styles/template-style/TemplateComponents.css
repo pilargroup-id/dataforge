@@ -6141,6 +6141,16 @@ select {
   background: rgba(24, 43, 88, 0.04);
 }
 
+.convert-page__btn--danger {
+  border-color: rgba(231, 111, 81, 0.35);
+  color: #b6431f;
+}
+
+.convert-page__btn--danger:hover:not(:disabled) {
+  border-color: rgba(231, 111, 81, 0.55);
+  background: rgba(231, 111, 81, 0.08);
+}
+
 @media (max-width: 1024px) {
   .convert-page__grid {
     grid-template-columns: 1fr;
@@ -6226,5 +6236,89 @@ select {
 .convert-page__row-action--download:disabled {
   background: rgba(35, 133, 122, 0.35);
   color: rgba(255, 255, 255, 0.75);
+}
+
+.convert-page__history-timeline {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 150px;
+}
+
+.convert-page__history-timeline-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 8px;
+}
+
+.convert-page__history-timeline-track::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(26, 42, 87, 0.1);
+  transform: translateY(-50%);
+}
+
+.convert-page__history-timeline-fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-teal) 0%, var(--accent-teal-dark) 100%);
+  transform: translateY(-50%);
+  transition: width 0.4s ease;
+}
+
+.convert-page__history-timeline-fill.is-danger {
+  background: linear-gradient(90deg, #e76f51 0%, #b6431f 100%);
+}
+
+.convert-page__history-timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid rgba(26, 42, 87, 0.18);
+}
+
+.convert-page__history-timeline-dot.is-complete {
+  border-color: var(--accent-teal-dark);
+  background: var(--accent-teal-dark);
+}
+
+.convert-page__history-timeline-dot.is-current {
+  border-color: var(--accent-teal-dark);
+  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.16);
+}
+
+.convert-page__history-timeline-dot.is-current.is-danger {
+  border-color: #b6431f;
+  background: #b6431f;
+  box-shadow: 0 0 0 3px rgba(231, 111, 81, 0.16);
+}
+
+.convert-page__history-timeline-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.convert-page__history-timeline-step {
+  color: var(--primary-blue);
+  font-weight: 700;
+}
+
+.convert-page__history-timeline-count {
+  color: #7f8da8;
+  font-weight: 600;
+  white-space: nowrap;
 }
 

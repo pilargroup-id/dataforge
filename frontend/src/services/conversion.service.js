@@ -18,6 +18,21 @@ export async function getConversionBatch(id) {
   return response?.data ?? null
 }
 
+export async function pauseConversionBatch(id) {
+  const response = await apiFetch(`/api/conversions/${id}/pause`, { method: 'POST' })
+  return response?.data ?? null
+}
+
+export async function continueConversionBatch(id) {
+  const response = await apiFetch(`/api/conversions/${id}/continue`, { method: 'POST' })
+  return response?.data ?? null
+}
+
+export async function cancelConversionBatch(id) {
+  const response = await apiFetch(`/api/conversions/${id}/cancel`, { method: 'POST' })
+  return response?.data ?? null
+}
+
 export async function getConversionBatches({ page = 1, limit = 5 } = {}) {
   const query = new URLSearchParams({ page: String(page), limit: String(limit) }).toString()
   const response = await apiFetch(`/api/conversions?${query}`)
@@ -56,10 +71,19 @@ export async function downloadConversionBatch(batch) {
   }
 }
 
-export async function openConversionBatch(batch) {
+export async function openConversionFile(batchId, fileId) {
   const previewTab = window.open('', '_blank')
   try {
-    const blob = await fetchConversionResultBlob(batch)
+    const token = getStoredToken()
+    const response = await fetch(`${API_BASE_URL}/api/conversions/${batchId}/files/${fileId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+
+    if (!response.ok) {
+      throw new Error('Gagal membuka file')
+    }
+
+    const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     if (previewTab) {
       previewTab.location.href = url
@@ -68,6 +92,7 @@ export async function openConversionBatch(batch) {
     }
   } catch {
     previewTab?.close()
-    throw new Error('Gagal membuka hasil konversi')
+    throw new Error('Gagal membuka file')
   }
 }
+

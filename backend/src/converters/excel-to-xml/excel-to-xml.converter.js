@@ -4,7 +4,16 @@ const XLSX = require('xlsx');
 const TemplateRegistry = require('../../templates/template.registry');
 const { sanitizeReadableFileName } = require('../../utils/file.util');
 
-async function convert({ files, outputDir, batchName, templateCode, options = {}, onValidated, onProgress }) {
+async function convert({
+  files,
+  outputDir,
+  batchName,
+  templateCode,
+  options = {},
+  onValidated,
+  onProgress,
+  resumeState = null,
+}) {
   if (files.length !== 1) {
     const err = new Error('EXCEL_TO_XML hanya menerima 1 file Excel per batch');
     err.code = 'INPUT_FILE_COUNT_INVALID';
@@ -23,6 +32,7 @@ async function convert({ files, outputDir, batchName, templateCode, options = {}
     (name) => name.trim().toLowerCase() === template.schema.sheetName.toLowerCase()
   );
   const sheetName = requestedSheet || workbook.SheetNames[0];
+
   if (!sheetName) {
     const err = new Error('Workbook tidak memiliki sheet');
     err.code = 'EMPTY_WORKBOOK';
@@ -39,6 +49,7 @@ async function convert({ files, outputDir, batchName, templateCode, options = {}
   const rows = template.parseRows(rawRows, template.schema);
   const { invoices, errors } = template.groupInvoices(rows, template.schema.dataStartRow);
   const blockingErrors = errors.filter((error) => error.level === 'error');
+
   if (blockingErrors.length) {
     const err = new Error('Data Excel tidak valid untuk template Accurate 5 Sales Invoice');
     err.code = 'SCHEMA_VALIDATION_FAILED';
@@ -61,16 +72,55 @@ async function convert({ files, outputDir, batchName, templateCode, options = {}
       template_code: template.code,
       sheet_name: sheetName,
       columns: template.schema.columns,
+      total_records: invoices.length,
     });
   }
 
   const branchCode = String(options.branch_code || template.schema.defaultBranchCode).trim();
-  const xml = template.buildXml(invoices, branchCode);
   const xmlName = `${sanitizeReadableFileName(batchName, 'sales_invoice')}.xml`;
   const xmlPath = path.join(outputDir, xmlName);
-  fs.writeFileSync(xmlPath, xml, 'utf8');
+  const partialPath = `${xmlPath}.partial`;
+  const lastCompletedIndex = Math.max(0, Number(resumeState?.last_completed_index || 0));
 
-  if (onProgress) await onProgress({ processedFiles: 1, totalFiles: 1, progressPercent: 100 });
+  if (lastCompletedIndex > invoices.length) {
+    const err = new Error('Checkpoint XML tidak valid: invoice index melebihi jumlah invoice');
+    err.code = 'RESUME_CHECKPOINT_INVALID';
+    throw err;
+  }
+
+  if (lastCompletedIndex > 0) {
+    if (!fs.existsSync(partialPath)) {
+      const err = new Error('Checkpoint XML tidak konsisten: partial XML tidak ditemukan');
+      err.code = 'RESUME_CHECKPOINT_INVALID';
+      throw err;
+    }
+  } else {
+    try { fs.unlinkSync(partialPath); } catch (_) { /* file may not exist */ }
+    try { fs.unlinkSync(xmlPath); } catch (_) { /* file may not exist */ }
+    fs.writeFileSync(partialPath, template.buildXmlStart(branchCode), 'utf8');
+  }
+
+  for (let index = lastCompletedIndex; index < invoices.length; index += 1) {
+    const invoice = invoices[index];
+    fs.appendFileSync(partialPath, template.buildInvoiceXml(invoice, index + 1), 'utf8');
+
+    const processed = index + 1;
+    if (onProgress) {
+      await onProgress({
+        processedFiles: processed === invoices.length ? 1 : 0,
+        totalFiles: 1,
+        progressPercent: Math.round((processed / invoices.length) * 100),
+        totalRecords: invoices.length,
+        checkpointData: {
+          last_completed_index: processed,
+          last_completed_key: invoice.INVOICENO,
+        },
+      });
+    }
+  }
+
+  fs.appendFileSync(partialPath, template.buildXmlEnd(), 'utf8');
+  fs.renameSync(partialPath, xmlPath);
 
   return {
     schema: {
@@ -97,5 +147,6 @@ module.exports = {
   templateType: 'XML',
   defaultTemplateCode: 'accurate5-sales-invoice',
   inputMode: 'single',
+  supportsPauseResume: true,
   convert,
 };

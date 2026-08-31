@@ -1,99 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
-import { Dropdown, TextField } from '../../components/forms'
-import Upload from '../../components/forms/Upload.jsx'
 import {
   AlertCircle,
-  Chart01,
   CheckCircle,
-  Download,
-  Eye,
   FileText01,
+  Pause,
   RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
-import DataTableAction from '../../components/table/DataTableAction.jsx'
+import CardUploadConvert from './CardUploadConvert.jsx'
+import CardViewConvert from './CardViewConvert.jsx'
+import DataTableHistory from './DataTableHistory.jsx'
 import {
-  createConversionBatch,
-  downloadConversionBatch,
-  getConversionBatch,
-  getConversionBatches,
-  getConversionCapabilities,
-  openConversionBatch,
-} from '../../services/conversion.service.js'
+  ACTIVE_STATUSES,
+  HISTORY_PAGE_SIZE_OPTIONS,
+  PROGRESS_STEPS,
+  STATUS_LABELS,
+  STATUS_TONE,
+  TERMINAL_DANGER_STATUSES,
+  cancelConversion,
+  canCancelBatch,
+  canContinueBatch,
+  canPauseBatch,
+  capabilityKey,
+  continueConversion,
+  convert,
+  downloadConversion,
+  fetchConversionBatch,
+  fetchConversionCapabilities,
+  fetchConversionHistory,
+  findCapabilityForBatch,
+  formatPauseExpiry,
+  getActiveStepIndex,
+  pauseConversion,
+  previewConversion,
+} from './convert.service.js'
 
 const defaultActivePage = {
   title: 'Convert',
   eyebrow: 'File Conversion',
-}
-
-const ACTIVE_STATUSES = ['UPLOADING', 'VALIDATING', 'QUEUED', 'PROCESSING']
-
-const STATUS_LABELS = {
-  UPLOADING: 'Mengunggah',
-  VALIDATING: 'Validasi struktur',
-  QUEUED: 'Menunggu antrian',
-  PROCESSING: 'Sedang diproses',
-  COMPLETED: 'Selesai',
-  REJECTED: 'Ditolak',
-  FAILED: 'Gagal',
-  EXPIRED: 'Kedaluwarsa',
-}
-
-const STATUS_TONE = {
-  UPLOADING: 'progress',
-  VALIDATING: 'progress',
-  QUEUED: 'progress',
-  PROCESSING: 'progress',
-  COMPLETED: 'success',
-  REJECTED: 'danger',
-  FAILED: 'danger',
-  EXPIRED: 'neutral',
-}
-
-const PROGRESS_STEPS = ['Mulai', 'Unggah', 'Proses', 'Selesai']
-const TERMINAL_DANGER_STATUSES = ['REJECTED', 'FAILED', 'EXPIRED']
-
-function getActiveStepIndex(status) {
-  if (!status) return 0
-  if (status === 'UPLOADING') return 1
-  if (['VALIDATING', 'QUEUED', 'PROCESSING'].includes(status)) return 2
-  if (status === 'COMPLETED') return 3
-  if (TERMINAL_DANGER_STATUSES.includes(status)) return 2
-  return 0
-}
-
-const HISTORY_PAGE_SIZE_OPTIONS = [5, 10, 25]
-
-const HISTORY_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'Asia/Jakarta',
-})
-
-function formatHistoryDate(value) {
-  if (!value) return '-'
-  const parsedDate = new Date(value)
-  if (Number.isNaN(parsedDate.getTime())) return '-'
-  return `${HISTORY_DATE_FORMATTER.format(parsedDate)} WIB`
-}
-
-function getHistoryStatusVariant(status) {
-  if (status === 'COMPLETED') return 'active'
-  if (ACTIVE_STATUSES.includes(status)) return 'pending'
-  return 'inactive'
-}
-
-function capabilityKey(capability) {
-  return `${capability.source_formats.join('-')}__${capability.target_format}`
-}
-
-function pickSourceFormat(capability) {
-  return capability.source_formats.includes('XLSX') ? 'XLSX' : capability.source_formats[0]
 }
 
 function ConvertPage({ activePage }) {
@@ -114,6 +59,9 @@ function ConvertPage({ activePage }) {
 
   const [currentBatch, setCurrentBatch] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  const [pausing, setPausing] = useState(false)
+  const [continuing, setContinuing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const resultRef = useRef(null)
 
   const [historyBatches, setHistoryBatches] = useState([])
@@ -133,11 +81,10 @@ function ConvertPage({ activePage }) {
       setCapabilitiesLoading(true)
       setCapabilitiesError('')
       try {
-        const data = await getConversionCapabilities()
+        const { capabilities: data, defaultKey } = await fetchConversionCapabilities()
         if (!isMounted) return
         setCapabilities(data)
-        const firstAllowed = data.find((item) => item.allowed)
-        if (firstAllowed) setSelectedKey(capabilityKey(firstAllowed))
+        if (defaultKey) setSelectedKey(defaultKey)
       } catch (error) {
         if (!isMounted) return
         setCapabilitiesError(error.message || 'Gagal memuat daftar konversi yang tersedia')
@@ -160,7 +107,7 @@ function ConvertPage({ activePage }) {
 
     const intervalId = setInterval(async () => {
       try {
-        const updated = await getConversionBatch(currentBatch.id)
+        const updated = await fetchConversionBatch(currentBatch.id)
         setCurrentBatch(updated)
         if (!ACTIVE_STATUSES.includes(updated.status)) {
           setHistoryRefreshKey((key) => key + 1)
@@ -180,7 +127,7 @@ function ConvertPage({ activePage }) {
       setHistoryLoading(true)
       setHistoryError('')
       try {
-        const { data, meta } = await getConversionBatches({ page: historyPage, limit: historyPageSize })
+        const { data, meta } = await fetchConversionHistory({ page: historyPage, limit: historyPageSize })
         if (!isMounted) return
         setHistoryBatches(data)
         setHistoryMeta(meta)
@@ -218,6 +165,12 @@ function ConvertPage({ activePage }) {
     label: template.name || template.code,
   }))
 
+  const currentBatchCapability = useMemo(
+    () => findCapabilityForBatch(capabilities, currentBatch),
+    [capabilities, currentBatch],
+  )
+  const supportsPauseResume = currentBatchCapability?.supports_pause_resume ?? false
+
   const handleFilesChange = (nextFiles) => {
     setFormError('')
     if (Array.isArray(nextFiles)) {
@@ -239,36 +192,9 @@ function ConvertPage({ activePage }) {
     event.preventDefault()
     setFormError('')
 
-    if (!selectedCapability) {
-      setFormError('Pilih jenis konversi terlebih dahulu')
-      return
-    }
-    if (files.length === 0) {
-      setFormError('Pilih minimal satu file untuk dikonversi')
-      return
-    }
-    if (isBatchMode && !folderName.trim()) {
-      setFormError('Nama folder / batch wajib diisi')
-      return
-    }
-    if (!isBatchMode && files.length > 1) {
-      setFormError('Konversi ini hanya menerima 1 file')
-      return
-    }
-
-    const formData = new FormData()
-    if (isBatchMode) {
-      formData.append('folder_name', folderName.trim())
-    }
-    if (templateCode) {
-      formData.append('template_code', templateCode)
-    }
-    files.forEach((file) => formData.append('files', file, file.name))
-
     setSubmitting(true)
     try {
-      const source = pickSourceFormat(selectedCapability)
-      const batch = await createConversionBatch(source, selectedCapability.target_format, formData)
+      const batch = await convert({ selectedCapability, isBatchMode, folderName, templateCode, files })
       setCurrentBatch(batch)
       setFiles([])
       setFolderName('')
@@ -286,7 +212,7 @@ function ConvertPage({ activePage }) {
     if (!currentBatch) return
     setDownloading(true)
     try {
-      await downloadConversionBatch(currentBatch)
+      await downloadConversion(currentBatch)
     } catch (error) {
       setFormError(error.message || 'Gagal mengunduh hasil konversi')
     } finally {
@@ -294,16 +220,69 @@ function ConvertPage({ activePage }) {
     }
   }
 
+  const handlePause = async () => {
+    if (!currentBatch) return
+    setFormError('')
+    setPausing(true)
+    try {
+      const updated = await pauseConversion(currentBatch)
+      setCurrentBatch(updated)
+    } catch (error) {
+      setFormError(error.message || 'Gagal menjeda konversi')
+    } finally {
+      setPausing(false)
+    }
+  }
+
+  const handleContinue = async () => {
+    if (!currentBatch) return
+    setFormError('')
+    setContinuing(true)
+    try {
+      const updated = await continueConversion(currentBatch)
+      setCurrentBatch(updated)
+      setHistoryRefreshKey((key) => key + 1)
+    } catch (error) {
+      if (error.code === 'PAUSED_BATCH_EXPIRED') {
+        setCurrentBatch(null)
+        setHistoryRefreshKey((key) => key + 1)
+      }
+      setFormError(error.message || 'Gagal melanjutkan konversi')
+    } finally {
+      setContinuing(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!currentBatch) return
+    const confirmed = window.confirm(
+      'Batalkan konversi ini? Seluruh data batch akan dihapus permanen dan tidak dapat dikembalikan.',
+    )
+    if (!confirmed) return
+
+    setFormError('')
+    setCancelling(true)
+    try {
+      await cancelConversion(currentBatch)
+      setCurrentBatch(null)
+      setHistoryRefreshKey((key) => key + 1)
+    } catch (error) {
+      setFormError(error.message || 'Gagal membatalkan konversi')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   const handleViewBatch = async (batch) => {
     setHistoryError('')
     try {
-      const detail = await getConversionBatch(batch.id)
+      const detail = await fetchConversionBatch(batch.id)
       setCurrentBatch(detail)
 
       if (detail.status === 'COMPLETED' && detail.download_available) {
         setOpeningHistoryId(batch.id)
         try {
-          await openConversionBatch(detail)
+          await previewConversion(detail)
         } finally {
           setOpeningHistoryId(null)
         }
@@ -315,10 +294,21 @@ function ConvertPage({ activePage }) {
     }
   }
 
+  const handleHistoryRowClick = async (batch) => {
+    setHistoryError('')
+    try {
+      const detail = await fetchConversionBatch(batch.id)
+      setCurrentBatch(detail)
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch (error) {
+      setHistoryError(error.message || 'Gagal memuat detail batch')
+    }
+  }
+
   const handleHistoryDownload = async (batch) => {
     setDownloadingHistoryId(batch.id)
     try {
-      await downloadConversionBatch(batch)
+      await downloadConversion(batch)
     } catch (error) {
       setHistoryError(error.message || 'Gagal mengunduh hasil konversi')
     } finally {
@@ -326,89 +316,17 @@ function ConvertPage({ activePage }) {
     }
   }
 
-  const historyColumns = useMemo(
-    () => [
-      {
-        key: 'batch',
-        header: 'Batch',
-        type: 'identity',
-        accessor: 'batch_name',
-        title: (row) => row.batch_name || row.original_folder_name || 'Batch',
-        subtitle: (row) =>
-          `${row.source_format} → ${row.target_format} · ${row.total_input_files ?? 0} file`,
-      },
-      {
-        key: 'created_at',
-        header: 'Tanggal',
-        nowrap: true,
-        render: (row) => formatHistoryDate(row.created_at),
-      },
-      {
-        key: 'status',
-        header: 'Status',
-        type: 'status',
-        accessor: 'status',
-        variant: (row) => getHistoryStatusVariant(row.status),
-        format: (value) => STATUS_LABELS[value] ?? value,
-      },
-    ],
-    [],
-  )
+  const handleHistoryPageSizeChange = (size) => {
+    setHistoryPageSize(size)
+    setHistoryPage(1)
+  }
 
-  const historyActions = useMemo(
-    () => [
-      {
-        key: 'view',
-        label: 'Buka file',
-        icon: Eye,
-        className: 'convert-page__row-action convert-page__row-action--view',
-        disabled: (row) => openingHistoryId === row.id,
-        onClick: (row) => handleViewBatch(row),
-      },
-      {
-        key: 'download',
-        label: 'Download',
-        icon: Download,
-        className: 'convert-page__row-action convert-page__row-action--download',
-        disabled: (row) =>
-          row.status !== 'COMPLETED' || !row.download_available || downloadingHistoryId === row.id,
-        onClick: (row) => handleHistoryDownload(row),
-      },
-    ],
-    [downloadingHistoryId, openingHistoryId],
-  )
-
-  const historyTotalPages = Math.max(1, historyMeta.totalPages ?? 1)
-
-  const historyPagination = useMemo(
-    () => ({
-      currentPage: historyPage,
-      totalPages: historyTotalPages,
-      pageSize: historyPageSize,
-      pageSizeOptions: HISTORY_PAGE_SIZE_OPTIONS,
-      pageSizeLabel: 'Tampilkan',
-      pageSizeSuffix: 'baris',
-      previousLabel: 'Sebelumnya',
-      nextLabel: 'Berikutnya',
-      ariaLabel: 'Invoice history pagination',
-      summary: `${historyBatches.length === 0 ? 0 : (historyPage - 1) * historyPageSize + 1}-${Math.min(
-        historyPage * historyPageSize,
-        historyMeta.total ?? 0,
-      )} dari ${historyMeta.total ?? 0} batch`,
-      onPrevious: () => setHistoryPage((page) => Math.max(1, page - 1)),
-      onNext: () => setHistoryPage((page) => Math.min(historyTotalPages, page + 1)),
-      onSelect: (page) => setHistoryPage(page),
-      onPageSizeChange: (size) => {
-        setHistoryPageSize(size)
-        setHistoryPage(1)
-      },
-    }),
-    [historyPage, historyPageSize, historyMeta, historyBatches.length, historyTotalPages],
-  )
-
-  const progressPercent = currentBatch?.total_input_files
-    ? Math.round(((currentBatch.processed_input_files ?? 0) / currentBatch.total_input_files) * 100)
-    : currentBatch?.progress_percent ?? 0
+  const progressPercent =
+    currentBatch?.progress_percent !== undefined && currentBatch?.progress_percent !== null
+      ? Math.round(Number(currentBatch.progress_percent))
+      : currentBatch?.total_input_files
+        ? Math.round(((currentBatch.processed_input_files ?? 0) / currentBatch.total_input_files) * 100)
+        : 0
 
   const statusTone = STATUS_TONE[currentBatch?.status] ?? 'neutral'
   const isBatchActive = currentBatch ? ACTIVE_STATUSES.includes(currentBatch.status) : false
@@ -427,6 +345,14 @@ function ConvertPage({ activePage }) {
       subtitle: 'Mulai konversi untuk melihat hasilnya di sini.',
       tone: 'neutral',
     }
+  } else if (currentBatch.status === 'PAUSING') {
+    resultSummary = {
+      icon: RefreshCw05,
+      title: currentBatch.batch_name,
+      subtitle: 'Menyelesaikan unit kerja aktif sampai checkpoint aman sebelum berhenti...',
+      tone: 'progress',
+      spin: true,
+    }
   } else if (isBatchActive) {
     resultSummary = {
       icon: RefreshCw05,
@@ -434,6 +360,16 @@ function ConvertPage({ activePage }) {
       subtitle: 'Sedang diproses, mohon tunggu...',
       tone: 'progress',
       spin: true,
+    }
+  } else if (currentBatch.status === 'PAUSED') {
+    const remaining = formatPauseExpiry(currentBatch.pause_expires_in_seconds)
+    resultSummary = {
+      icon: Pause,
+      title: currentBatch.batch_name,
+      subtitle: remaining
+        ? `Dijeda. Klik Lanjutkan untuk melanjutkan dari checkpoint terakhir. Data akan dihapus dalam ${remaining} jika tidak dilanjutkan.`
+        : 'Dijeda. Klik Lanjutkan untuk melanjutkan dari checkpoint terakhir.',
+      tone: 'neutral',
     }
   } else if (currentBatch.status === 'COMPLETED') {
     resultSummary = {
@@ -450,8 +386,6 @@ function ConvertPage({ activePage }) {
       tone: 'danger',
     }
   }
-
-  const ResultIcon = resultSummary.icon
 
   return (
     <section className="dashboard-panel users-table-card convert-page" aria-label={resolvedActivePage.title}>
@@ -472,230 +406,69 @@ function ConvertPage({ activePage }) {
             Anda belum memiliki akses ke modul convert manapun. Hubungi admin IT untuk permintaan akses.
           </p>
         ) : (
-          <>
-            <div className="convert-page__grid">
-              <div className="convert-page__panel">
-                <div className="convert-page__config">
-                  <Dropdown
-                    label="Jenis Konversi"
-                    value={selectedKey}
-                    options={capabilityOptions}
-                    required
-                    onChange={handleConversionChange}
-                  />
+          <div className="convert-page__grid">
+            <CardUploadConvert
+              selectedKey={selectedKey}
+              capabilityOptions={capabilityOptions}
+              onConversionChange={handleConversionChange}
+              isBatchMode={isBatchMode}
+              folderName={folderName}
+              onFolderNameChange={setFolderName}
+              templateOptions={templateOptions}
+              templateCode={templateCode}
+              onTemplateCodeChange={setTemplateCode}
+              uploadResetKey={uploadResetKey}
+              onFilesChange={handleFilesChange}
+              formError={formError}
+              submitting={submitting}
+              currentBatch={currentBatch}
+              downloading={downloading}
+              onDownload={handleDownload}
+              resultRef={resultRef}
+              canPause={canPauseBatch(currentBatch, supportsPauseResume)}
+              canContinue={canContinueBatch(currentBatch)}
+              canCancel={canCancelBatch(currentBatch)}
+              pausing={pausing}
+              continuing={continuing}
+              cancelling={cancelling}
+              onPause={handlePause}
+              onContinue={handleContinue}
+              onCancel={handleCancel}
+            />
 
-                  {isBatchMode ? (
-                    <TextField
-                      label="Nama Folder / Batch"
-                      placeholder="Contoh: Marketplace Agustus"
-                      value={folderName}
-                      required
-                      onChange={(event) => setFolderName(event.target.value)}
-                    />
-                  ) : null}
-
-                  {templateOptions.length > 0 ? (
-                    <Dropdown
-                      label="Template"
-                      value={templateCode}
-                      options={templateOptions}
-                      placeholder="Gunakan template default"
-                      onChange={(value) => setTemplateCode(value)}
-                    />
-                  ) : null}
-                </div>
-
-                <Upload
-                  key={`${selectedKey}-${uploadResetKey}`}
-                  label="Dokumen"
-                  accept=".xls,.xlsx"
-                  multiple={isBatchMode}
-                  helperText={
-                    isBatchMode
-                      ? 'Pilih seluruh file XLS/XLSX dalam satu folder, maksimal 20 file. Format: .xls / .xlsx'
-                      : 'Pilih 1 file XLS/XLSX. Format: .xls / .xlsx'
-                  }
-                  onFilesChange={handleFilesChange}
-                />
-
-                {formError ? <p className="convert-page__error">{formError}</p> : null}
-
-                <div className="convert-page__actionbar">
-                  <div className="convert-page__actionbar-buttons">
-                    <button
-                      type="submit"
-                      className="users-table-card__action"
-                      disabled={submitting}
-                    >
-                      <RefreshCw05
-                        size={18}
-                        aria-hidden="true"
-                        className={submitting ? 'convert-page__spin' : ''}
-                      />
-                      {submitting ? 'Mengunggah...' : 'Convert'}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="convert-page__btn convert-page__btn--outline"
-                      onClick={handleDownload}
-                      disabled={
-                        !currentBatch ||
-                        currentBatch.status !== 'COMPLETED' ||
-                        !currentBatch.download_available ||
-                        downloading
-                      }
-                    >
-                      <Download size={18} aria-hidden="true" />
-                      {downloading ? 'Mengunduh...' : 'Download'}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="convert-page__btn convert-page__btn--outline"
-                      onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                      disabled={!currentBatch}
-                    >
-                      <Eye size={18} aria-hidden="true" />
-                      Output
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <aside className="convert-page__panel convert-page__panel--status" ref={resultRef}>
-                <div className="convert-page__stats">
-                  <div className="convert-page__stat">
-                    <span className="convert-page__stat-icon">
-                      <FileText01 size={18} aria-hidden="true" />
-                    </span>
-                    <div className="convert-page__stat-copy">
-                      <p className="convert-page__stat-label">Batch Saat Ini</p>
-                      <p className="convert-page__stat-value">{currentBatch?.batch_name ?? '-'}</p>
-                    </div>
-                  </div>
-                  <div className="convert-page__stat">
-                    <span className="convert-page__stat-icon">
-                      <Chart01 size={18} aria-hidden="true" />
-                    </span>
-                    <div className="convert-page__stat-copy">
-                      <p className="convert-page__stat-label">Total Diproses</p>
-                      <p className="convert-page__stat-value">{historyMeta.total ?? '-'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="convert-page__progress-card">
-                  <div className="convert-page__progress-card-header">
-                    <p className="convert-page__progress-heading">{progressHeading}</p>
-                    <span className={`convert-page__pill convert-page__pill--${statusTone}`}>
-                      {progressPercent}%
-                    </span>
-                  </div>
-
-                  <div className="convert-page__stepper">
-                    <div className="convert-page__stepper-track">
-                      <div
-                        className={`convert-page__stepper-track-fill${isDangerStep ? ' is-danger' : ''}`}
-                        style={{ width: `${stepperFillPercent}%` }}
-                      />
-                      {PROGRESS_STEPS.map((step, index) => (
-                        <span
-                          key={step}
-                          className={[
-                            'convert-page__stepper-dot',
-                            index < activeStepIndex ? 'is-complete' : '',
-                            index === activeStepIndex ? 'is-current' : '',
-                            index === activeStepIndex && isDangerStep ? 'is-danger' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                        />
-                      ))}
-                    </div>
-                    <div className="convert-page__stepper-labels">
-                      {PROGRESS_STEPS.map((step, index) => (
-                        <span key={step} className={index === activeStepIndex ? 'is-current' : ''}>
-                          {step}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="convert-page__progress-content">
-                    {!currentBatch ? (
-                      <ul className="convert-page__hints">
-                        <li>Setiap baris pada file akan dibuat menjadi satu dokumen.</li>
-                        <li>Pastikan header kolom sesuai dengan template yang dipilih.</li>
-                        <li>Hasil konversi akan dikemas dalam satu file ZIP sesuai nama batch.</li>
-                      </ul>
-                    ) : currentBatch.status === 'REJECTED' || currentBatch.status === 'FAILED' ? (
-                      <div className="convert-page__validation">
-                        <p>{currentBatch.error_message || 'Batch gagal diproses.'}</p>
-                        {validationErrors?.invalid_files?.length > 0 ? (
-                          <ul>
-                            {validationErrors.invalid_files.map((invalidFile) => (
-                              <li key={invalidFile.file_name}>
-                                <strong>{invalidFile.file_name}</strong>
-                                {invalidFile.missing_headers?.length > 0
-                                  ? ` · kolom hilang: ${invalidFile.missing_headers.join(', ')}`
-                                  : ''}
-                                {invalidFile.unexpected_headers?.length > 0
-                                  ? ` · kolom tak dikenal: ${invalidFile.unexpected_headers.join(', ')}`
-                                  : ''}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <p className="convert-page__hint">
-                        {currentBatch.source_format} → {currentBatch.target_format} ·{' '}
-                        {currentBatch.total_input_files} file
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className={`convert-page__result-summary convert-page__result-summary--${resultSummary.tone}`}>
-                  <span className="convert-page__result-summary-icon">
-                    <ResultIcon
-                      size={18}
-                      aria-hidden="true"
-                      className={resultSummary.spin ? 'convert-page__spin' : ''}
-                    />
-                  </span>
-                  <div>
-                    <p className="convert-page__result-summary-title">{resultSummary.title}</p>
-                    <span className="convert-page__result-summary-subtitle">{resultSummary.subtitle}</span>
-                  </div>
-                </div>
-              </aside>
-            </div>
-          </>
+            <CardViewConvert
+              resultRef={resultRef}
+              currentBatch={currentBatch}
+              historyMeta={historyMeta}
+              progressPercent={progressPercent}
+              statusTone={statusTone}
+              activeStepIndex={activeStepIndex}
+              stepperFillPercent={stepperFillPercent}
+              isDangerStep={isDangerStep}
+              progressHeading={progressHeading}
+              validationErrors={validationErrors}
+              resultSummary={resultSummary}
+            />
+          </div>
         )}
       </form>
 
-      <div className="convert-page__history">
-        <div className="convert-page__history-header">
-          <div>
-            <p className="dashboard-panel__eyebrow">Riwayat</p>
-            <h2 className="convert-page__history-title">Invoice History</h2>
-          </div>
-        </div>
-
-        {historyError ? <p className="convert-page__error">{historyError}</p> : null}
-
-        <DataTableAction
-          rows={historyBatches}
-          columns={historyColumns}
-          actions={historyActions}
-          getRowId={(row) => row.id}
-          tableLabel="Invoice history table"
-          emptyMessage={historyLoading ? 'Memuat riwayat konversi...' : 'Belum ada riwayat konversi.'}
-          pagination={historyPagination}
-        />
-      </div>
+      <DataTableHistory
+        batches={historyBatches}
+        loading={historyLoading}
+        error={historyError}
+        page={historyPage}
+        pageSize={historyPageSize}
+        pageSizeOptions={HISTORY_PAGE_SIZE_OPTIONS}
+        meta={historyMeta}
+        onPageChange={setHistoryPage}
+        onPageSizeChange={handleHistoryPageSizeChange}
+        onRowClick={handleHistoryRowClick}
+        onView={handleViewBatch}
+        onDownload={handleHistoryDownload}
+        downloadingId={downloadingHistoryId}
+        openingId={openingHistoryId}
+      />
     </section>
   )
 }
