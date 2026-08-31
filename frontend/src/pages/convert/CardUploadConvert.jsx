@@ -1,13 +1,6 @@
 import { Dropdown, TextField } from '../../components/forms'
 import Upload from '../../components/forms/Upload.jsx'
-import {
-  Download,
-  Eye,
-  Pause,
-  Play,
-  RefreshCw05,
-  XClose,
-} from '../../components/layoute/TemplateIcons.jsx'
+import { Chart01, FileText01 } from '../../components/layoute/TemplateIcons.jsx'
 
 function CardUploadConvert({
   selectedKey,
@@ -22,31 +15,21 @@ function CardUploadConvert({
   uploadResetKey,
   onFilesChange,
   formError,
-  submitting,
   currentBatch,
-  downloading,
-  onDownload,
-  resultRef,
-  canPause,
-  canContinue,
-  canCancel,
-  pausing,
-  continuing,
-  cancelling,
-  onPause,
-  onContinue,
-  onCancel,
+  historyMeta,
 }) {
   return (
     <div className="convert-page__panel">
       <div className="convert-page__config">
-        <Dropdown
-          label="Jenis Konversi"
-          value={selectedKey}
-          options={capabilityOptions}
-          required
-          onChange={onConversionChange}
-        />
+        {capabilityOptions.length > 1 ? (
+          <Dropdown
+            label="Jenis Konversi"
+            value={selectedKey}
+            options={capabilityOptions}
+            required
+            onChange={onConversionChange}
+          />
+        ) : null}
 
         {isBatchMode ? (
           <TextField
@@ -67,6 +50,28 @@ function CardUploadConvert({
             onChange={onTemplateCodeChange}
           />
         ) : null}
+
+        <div className="convert-page__stat-group">
+          <div className="convert-page__stat">
+            <span className="convert-page__stat-icon">
+              <FileText01 size={18} aria-hidden="true" />
+            </span>
+            <div className="convert-page__stat-copy">
+              <p className="convert-page__stat-label">Batch Saat Ini</p>
+              <p className="convert-page__stat-value">{currentBatch?.batch_name ?? '-'}</p>
+            </div>
+          </div>
+
+          <div className="convert-page__stat">
+            <span className="convert-page__stat-icon">
+              <Chart01 size={18} aria-hidden="true" />
+            </span>
+            <div className="convert-page__stat-copy">
+              <p className="convert-page__stat-label">Total Diproses</p>
+              <p className="convert-page__stat-value">{historyMeta.total ?? '-'}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Upload
@@ -83,80 +88,6 @@ function CardUploadConvert({
       />
 
       {formError ? <p className="convert-page__error">{formError}</p> : null}
-
-      <div className="convert-page__actionbar">
-        <div className="convert-page__actionbar-buttons">
-          <button type="submit" className="users-table-card__action" disabled={submitting}>
-            <RefreshCw05
-              size={18}
-              aria-hidden="true"
-              className={submitting ? 'convert-page__spin' : ''}
-            />
-            {submitting ? 'Mengunggah...' : 'Convert'}
-          </button>
-
-          <button
-            type="button"
-            className="convert-page__btn convert-page__btn--outline"
-            onClick={onDownload}
-            disabled={
-              !currentBatch ||
-              currentBatch.status !== 'COMPLETED' ||
-              !currentBatch.download_available ||
-              downloading
-            }
-          >
-            <Download size={18} aria-hidden="true" />
-            {downloading ? 'Mengunduh...' : 'Download'}
-          </button>
-
-          <button
-            type="button"
-            className="convert-page__btn convert-page__btn--outline"
-            onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            disabled={!currentBatch}
-          >
-            <Eye size={18} aria-hidden="true" />
-            Output
-          </button>
-
-          {canPause ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline"
-              onClick={onPause}
-              disabled={pausing}
-            >
-              <Pause size={18} aria-hidden="true" />
-              {pausing ? 'Menjeda...' : 'Pause'}
-            </button>
-          ) : null}
-
-          {canContinue ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline"
-              onClick={onContinue}
-              disabled={continuing}
-            >
-              <Play size={18} aria-hidden="true" />
-              {continuing ? 'Melanjutkan...' : 'Lanjutkan'}
-            </button>
-          ) : null}
-
-          {canCancel ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline convert-page__btn--danger"
-              onClick={onCancel}
-              disabled={cancelling}
-            >
-              <XClose size={18} aria-hidden="true" />
-              {cancelling ? 'Membatalkan...' : 'Batalkan'}
-            </button>
-          ) : null}
-        </div>
-      </div>
     </div>
   )
 }

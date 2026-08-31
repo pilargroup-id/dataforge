@@ -10,7 +10,7 @@ export default function RequireModuleAccess({ moduleCode, children }) {
   }
 
   if (!hasModule(moduleCode)) {
-    return <Navigate to="/Convert" replace />;
+    return <Navigate to="/Convert/ExcelToJSONL" replace />;
   }
 
   return children;

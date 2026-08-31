@@ -17,11 +17,23 @@ export const pageDetails = {
     value: '7',
     detail: 'Ringkasan proyek dan aktivitas terkait.',
   },
-  '/Convert': {
-    title: 'Convert',
+  '/Convert/ExcelToJSONL': {
+    title: 'Excel To JSONL',
     eyebrow: 'File Conversion',
     value: '0',
-    detail: 'Upload dokumen Excel dan pantau status konversi batch.',
+    detail: 'Upload dokumen Excel dan konversi ke format JSONL.',
+  },
+  '/Convert/ExcelToPDF': {
+    title: 'Excel To PDF',
+    eyebrow: 'File Conversion',
+    value: '0',
+    detail: 'Upload dokumen Excel dan konversi ke format PDF.',
+  },
+  '/Convert/ExcelToXML': {
+    title: 'Excel To XML',
+    eyebrow: 'File Conversion',
+    value: '0',
+    detail: 'Upload dokumen Excel dan konversi ke format XML.',
   },
   '/Reports/TeamPerformance': {
     title: 'Team Performance',

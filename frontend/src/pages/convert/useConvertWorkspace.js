@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 import {
   AlertCircle,
@@ -8,7 +7,6 @@ import {
   Pause,
   RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
-import DialogCancel from '../../components/Dialog/dialog-convert/DialogCancel.jsx'
 import CardUploadConvert from './CardUploadConvert.jsx'
 import CardViewConvert from './CardViewConvert.jsx'
 import DataTableHistory from './DataTableHistory.jsx'
@@ -28,7 +26,7 @@ import {
   convert,
   downloadConversion,
   fetchConversionBatch,
-  fetchConversionCapabilities,
+  fetchConversionCapabilitiesByFormat,
   fetchConversionHistory,
   findCapabilityForBatch,
   formatPauseExpiry,
@@ -37,15 +35,7 @@ import {
   previewConversion,
 } from './convert.service.js'
 
-const defaultActivePage = {
-  title: 'Convert',
-  eyebrow: 'File Conversion',
-}
-
-function ConvertPage({ activePage }) {
-  const outletContext = useOutletContext() ?? {}
-  const resolvedActivePage = activePage ?? outletContext.activePage ?? defaultActivePage
-
+function useConvertWorkspace(targetFormat) {
   const [capabilities, setCapabilities] = useState([])
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(true)
   const [capabilitiesError, setCapabilitiesError] = useState('')
@@ -83,7 +73,7 @@ function ConvertPage({ activePage }) {
       setCapabilitiesLoading(true)
       setCapabilitiesError('')
       try {
-        const { capabilities: data, defaultKey } = await fetchConversionCapabilities()
+        const { capabilities: data, defaultKey } = await fetchConversionCapabilitiesByFormat(targetFormat)
         if (!isMounted) return
         setCapabilities(data)
         if (defaultKey) setSelectedKey(defaultKey)
@@ -100,7 +90,7 @@ function ConvertPage({ activePage }) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [targetFormat])
 
   useEffect(() => {
     if (!currentBatch || !ACTIVE_STATUSES.includes(currentBatch.status)) {
@@ -129,7 +119,11 @@ function ConvertPage({ activePage }) {
       setHistoryLoading(true)
       setHistoryError('')
       try {
-        const { data, meta } = await fetchConversionHistory({ page: historyPage, limit: historyPageSize })
+        const { data, meta } = await fetchConversionHistory({
+          page: historyPage,
+          limit: historyPageSize,
+          targetFormat,
+        })
         if (!isMounted) return
         setHistoryBatches(data)
         setHistoryMeta(meta)
@@ -146,7 +140,7 @@ function ConvertPage({ activePage }) {
     return () => {
       isMounted = false
     }
-  }, [historyPage, historyPageSize, historyRefreshKey])
+  }, [targetFormat, historyPage, historyPageSize, historyRefreshKey])
 
   const allowedCapabilities = useMemo(() => capabilities.filter((item) => item.allowed), [capabilities])
 
@@ -477,15 +471,8 @@ function ConvertPage({ activePage }) {
         downloadingId={downloadingHistoryId}
         openingId={openingHistoryId}
       />
-
-      <DialogCancel
-        isOpen={cancelDialogOpen}
-        onClose={handleCancelDialogClose}
-        onConfirm={handleCancelConfirm}
-        loading={cancelling}
-      />
     </section>
   )
 }
 
-export default ConvertPage
+export default useConvertWorkspace

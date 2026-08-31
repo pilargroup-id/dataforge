@@ -33,8 +33,12 @@ export async function cancelConversionBatch(id) {
   return response?.data ?? null
 }
 
-export async function getConversionBatches({ page = 1, limit = 5 } = {}) {
-  const query = new URLSearchParams({ page: String(page), limit: String(limit) }).toString()
+export async function getConversionBatches({ page = 1, limit = 5, targetFormat } = {}) {
+  const params = { page: String(page), limit: String(limit) }
+  if (targetFormat) {
+    params.target_format = targetFormat
+  }
+  const query = new URLSearchParams(params).toString()
   const response = await apiFetch(`/api/conversions?${query}`)
   return {
     data: response?.data ?? [],

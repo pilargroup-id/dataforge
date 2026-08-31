@@ -44,7 +44,7 @@ export const STATUS_TONE = {
 
 export const PROGRESS_STEPS = ['Mulai', 'Unggah', 'Proses', 'Selesai']
 export const TERMINAL_DANGER_STATUSES = ['REJECTED', 'FAILED', 'EXPIRED']
-export const HISTORY_PAGE_SIZE_OPTIONS = [5, 10, 25]
+export const HISTORY_PAGE_SIZE_OPTIONS = [10, 25, 50]
 
 const HISTORY_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
   day: 'numeric',
@@ -124,8 +124,15 @@ export async function fetchConversionCapabilities() {
   return { capabilities, defaultKey: firstAllowed ? capabilityKey(firstAllowed) : '' }
 }
 
-export async function fetchConversionHistory({ page, limit }) {
-  return getConversionBatches({ page, limit })
+export async function fetchConversionCapabilitiesByFormat(targetFormat) {
+  const allCapabilities = await getConversionCapabilities()
+  const capabilities = allCapabilities.filter((item) => item.target_format === targetFormat)
+  const firstAllowed = capabilities.find((item) => item.allowed)
+  return { capabilities, defaultKey: firstAllowed ? capabilityKey(firstAllowed) : '' }
+}
+
+export async function fetchConversionHistory({ page, limit, targetFormat }) {
+  return getConversionBatches({ page, limit, targetFormat })
 }
 
 export async function fetchConversionBatch(id) {
