@@ -7,9 +7,6 @@ import {
   Pause,
   RefreshCw05,
 } from '../../components/layoute/TemplateIcons.jsx'
-import CardUploadConvert from './CardUploadConvert.jsx'
-import CardViewConvert from './CardViewConvert.jsx'
-import DataTableHistory from './DataTableHistory.jsx'
 import {
   ACTIVE_STATUSES,
   HISTORY_PAGE_SIZE_OPTIONS,
@@ -389,90 +386,66 @@ function useConvertWorkspace(targetFormat) {
     }
   }
 
-  return (
-    <section className="dashboard-panel users-table-card convert-page" aria-label={resolvedActivePage.title}>
-      <div className="users-table-card__header">
-        <div>
-          <p className="dashboard-panel__eyebrow">{resolvedActivePage.eyebrow}</p>
-          <h1 className="dashboard-panel__title">{resolvedActivePage.title}</h1>
-        </div>
-      </div>
+  return {
+    capabilitiesLoading,
+    capabilitiesError,
+    allowedCapabilities,
 
-      <form className="convert-page__body" onSubmit={handleSubmit}>
-        {capabilitiesLoading ? (
-          <p className="convert-page__hint">Memuat jenis konversi yang tersedia...</p>
-        ) : capabilitiesError ? (
-          <p className="convert-page__error">{capabilitiesError}</p>
-        ) : allowedCapabilities.length === 0 ? (
-          <p className="convert-page__hint">
-            Anda belum memiliki akses ke modul convert manapun. Hubungi admin IT untuk permintaan akses.
-          </p>
-        ) : (
-          <div className="convert-page__grid">
-            <CardUploadConvert
-              selectedKey={selectedKey}
-              capabilityOptions={capabilityOptions}
-              onConversionChange={handleConversionChange}
-              isBatchMode={isBatchMode}
-              folderName={folderName}
-              onFolderNameChange={setFolderName}
-              templateOptions={templateOptions}
-              templateCode={templateCode}
-              onTemplateCodeChange={setTemplateCode}
-              uploadResetKey={uploadResetKey}
-              onFilesChange={handleFilesChange}
-              formError={formError}
-              submitting={submitting}
-              currentBatch={currentBatch}
-              downloading={downloading}
-              onDownload={handleDownload}
-              resultRef={resultRef}
-              canPause={canPauseBatch(currentBatch, supportsPauseResume)}
-              canContinue={canContinueBatch(currentBatch)}
-              canCancel={canCancelBatch(currentBatch)}
-              pausing={pausing}
-              continuing={continuing}
-              cancelling={cancelling}
-              onPause={handlePause}
-              onContinue={handleContinue}
-              onCancel={handleCancel}
-            />
+    selectedKey,
+    capabilityOptions,
+    handleConversionChange,
+    isBatchMode,
+    folderName,
+    setFolderName,
+    templateOptions,
+    templateCode,
+    setTemplateCode,
+    uploadResetKey,
+    handleFilesChange,
+    formError,
+    submitting,
+    handleSubmit,
 
-            <CardViewConvert
-              resultRef={resultRef}
-              currentBatch={currentBatch}
-              historyMeta={historyMeta}
-              progressPercent={progressPercent}
-              statusTone={statusTone}
-              activeStepIndex={activeStepIndex}
-              stepperFillPercent={stepperFillPercent}
-              isDangerStep={isDangerStep}
-              progressHeading={progressHeading}
-              validationErrors={validationErrors}
-              resultSummary={resultSummary}
-            />
-          </div>
-        )}
-      </form>
+    currentBatch,
+    downloading,
+    handleDownload,
+    resultRef,
+    canPause: canPauseBatch(currentBatch, supportsPauseResume),
+    canContinue: canContinueBatch(currentBatch),
+    canCancel: canCancelBatch(currentBatch),
+    pausing,
+    continuing,
+    cancelling,
+    handlePause,
+    handleContinue,
+    handleCancel,
+    cancelDialogOpen,
+    handleCancelDialogClose,
+    handleCancelConfirm,
 
-      <DataTableHistory
-        batches={historyBatches}
-        loading={historyLoading}
-        error={historyError}
-        page={historyPage}
-        pageSize={historyPageSize}
-        pageSizeOptions={HISTORY_PAGE_SIZE_OPTIONS}
-        meta={historyMeta}
-        onPageChange={setHistoryPage}
-        onPageSizeChange={handleHistoryPageSizeChange}
-        onRowClick={handleHistoryRowClick}
-        onView={handleViewBatch}
-        onDownload={handleHistoryDownload}
-        downloadingId={downloadingHistoryId}
-        openingId={openingHistoryId}
-      />
-    </section>
-  )
+    historyMeta,
+    progressPercent,
+    statusTone,
+    activeStepIndex,
+    stepperFillPercent,
+    isDangerStep,
+    progressHeading,
+    validationErrors,
+    resultSummary,
+
+    historyBatches,
+    historyLoading,
+    historyError,
+    historyPage,
+    setHistoryPage,
+    historyPageSize,
+    handleHistoryPageSizeChange,
+    handleHistoryRowClick,
+    handleViewBatch,
+    handleHistoryDownload,
+    downloadingHistoryId,
+    openingHistoryId,
+  }
 }
 
 export default useConvertWorkspace

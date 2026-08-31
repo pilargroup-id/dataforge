@@ -1,3 +1,4 @@
+import DialogCancel from '../../components/Dialog/dialog-convert/DialogCancel.jsx'
 import CardUploadConvert from './CardUploadConvert.jsx'
 import CardViewConvert from './CardViewConvert.jsx'
 import DataTableHistory from './DataTableHistory.jsx'
@@ -88,6 +89,13 @@ function ConvertWorkspace({ targetFormat, activePage }) {
         onDownload={workspace.handleHistoryDownload}
         downloadingId={workspace.downloadingHistoryId}
         openingId={workspace.openingHistoryId}
+      />
+
+      <DialogCancel
+        isOpen={workspace.cancelDialogOpen}
+        onClose={workspace.handleCancelDialogClose}
+        onConfirm={workspace.handleCancelConfirm}
+        loading={workspace.cancelling}
       />
     </section>
   )
