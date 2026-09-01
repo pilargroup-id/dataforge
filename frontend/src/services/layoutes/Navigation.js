@@ -14,6 +14,7 @@ export const implementedNavigationPaths = [
   '/Convert/ExcelToXML',
   '/Master',
   '/Master/UserPermission',
+  '/Master/AccessBQ',
 ]
 
 export const primaryNavigationItems = [
@@ -56,6 +57,13 @@ export const primaryNavigationItems = [
         icon: Users01,
         moduleCode: 'ADMINISTRATION',
       },
+      {
+        id: 'access-bq',
+        label: 'Access BigQuery',
+        href: '/Master/AccessBQ',
+        icon: Users01,
+        itOnly: true,
+      }
     ],
   },
 ]

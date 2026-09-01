@@ -4100,6 +4100,44 @@ select {
   scrollbar-gutter: stable;
 }
 
+.bigquery-access-popup {
+  width: min(100%, 1120px);
+}
+
+.bigquery-access-popup .dashboard-popup__body {
+  gap: 1.25rem;
+}
+
+.bigquery-access-popup .register-user-popup__form {
+  gap: 1.25rem;
+}
+
+.bigquery-access-popup .register-user-popup__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .bigquery-access-popup .register-user-popup__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .bigquery-access-popup .register-user-popup__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bigquery-access-popup__permissions {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(26, 42, 87, 0.08);
+  border-radius: 16px;
+  background: rgba(248, 249, 250, 0.72);
+}
+
 .bigquery-upload-popup__source {
   display: grid;
   gap: 0.25rem;

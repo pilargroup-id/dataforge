@@ -6,7 +6,9 @@ import ExcelToJsonlPage from '../pages/convert/excel-to-jsonl/ExcelToJsonlPage.j
 import ExcelToPdfPage from '../pages/convert/excel-to-pdf/ExcelToPdfPage.jsx';
 import ExcelToXmlPage from '../pages/convert/excel-to-xml/ExcelToXmlPage.jsx';
 import MasterPermission from '../pages/master/MasterPermission.jsx';
+import MasterAccessBQ from '../pages/master/MasterAccessBQ.jsx';
 import RequireModuleAccess from './RequireModuleAccess.jsx';
+import RequireIT from './RequireIT.jsx';
 
 const DEFAULT_CONVERT_PATH = '/Convert/ExcelToJSONL';
 
@@ -25,6 +27,14 @@ export default function RouteConfig() {
             <RequireModuleAccess moduleCode="ADMINISTRATION">
               <MasterPermission />
             </RequireModuleAccess>
+          }
+        />
+        <Route
+          path="Master/AccessBQ"
+          element={
+            <RequireIT>
+              <MasterAccessBQ />
+            </RequireIT>
           }
         />
         <Route path="*" element={<Navigate to={DEFAULT_CONVERT_PATH} replace />} />

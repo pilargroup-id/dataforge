@@ -47,6 +47,12 @@ export const pageDetails = {
     value: '6',
     detail: 'Pengaturan hak akses tiap role terhadap modul aplikasi.',
   },
+  '/Master/AccessBQ': {
+    title: 'Access BigQuery',
+    eyebrow: 'Master Data',
+    value: '0',
+    detail: 'Pengaturan hak akses dataset BigQuery per user, department, atau company.',
+  },
   '/settings': {
     title: 'Settings',
     eyebrow: 'Workspace',

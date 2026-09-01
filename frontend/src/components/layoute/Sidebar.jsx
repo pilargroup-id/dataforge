@@ -11,13 +11,19 @@ import {
 } from '../../services/layoutes/Navigation.js'
 import '../../styles/template-style/TemplateComponents.css'
 
-function filterItemsByPermission(items, hasModule) {
+function filterItemsByPermission(items, hasModule, isIT) {
   return items.reduce((visibleItems, item) => {
     if (item.moduleCode && !hasModule(item.moduleCode)) {
       return visibleItems
     }
 
-    const children = item.children ? filterItemsByPermission(item.children, hasModule) : undefined
+    if (item.itOnly && !isIT) {
+      return visibleItems
+    }
+
+    const children = item.children
+      ? filterItemsByPermission(item.children, hasModule, isIT)
+      : undefined
     visibleItems.push(children ? { ...item, children } : item)
     return visibleItems
   }, [])
@@ -180,7 +186,7 @@ function Sidebar({
 }) {
   const [expandedGroups, setExpandedGroups] = useState({})
   const [authUser, setAuthUser] = useState(null)
-  const { loading: permissionsLoading, hasModule } = usePermissions()
+  const { loading: permissionsLoading, hasModule, isIT } = usePermissions()
 
   useEffect(() => {
     let isMounted = true
@@ -209,8 +215,8 @@ function Sidebar({
     ''
   const initials = getInitials(userName)
   const visiblePrimaryItems = useMemo(
-    () => (permissionsLoading ? [] : filterItemsByPermission(primaryItems, hasModule)),
-    [permissionsLoading, primaryItems, hasModule],
+    () => (permissionsLoading ? [] : filterItemsByPermission(primaryItems, hasModule, isIT)),
+    [permissionsLoading, primaryItems, hasModule, isIT],
   )
   const activeExpandedGroups = useMemo(
     () => getInitiallyExpandedGroups([...visiblePrimaryItems, ...secondaryItems], activePath),
