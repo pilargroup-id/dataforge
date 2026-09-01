@@ -713,6 +713,22 @@ async function waitForBigQueryJob(jobRef) {
   }
 }
 
+const TRANSIENT_NETWORK_CODES = new Set([
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ECONNABORTED',
+  'EPIPE',
+  'EAI_AGAIN',
+]);
+
+function isTransientNetworkError(error) {
+  if (!error) return false;
+  if (TRANSIENT_NETWORK_CODES.has(error.code)) return true;
+  return /ECONNRESET|socket hang up|network socket disconnected|ETIMEDOUT|EPIPE/i.test(
+    String(error.message || '')
+  );
+}
+
 async function createOrRecoverLoadJob(table, combinedPath, metadata, gcpJobId, location) {
   try {
     const [job] = await table.createLoadJob(combinedPath, metadata);
@@ -728,6 +744,25 @@ async function createOrRecoverLoadJob(table, combinedPath, metadata, gcpJobId, l
       throw createError;
     }
   }
+}
+
+async function createOrRecoverLoadJobWithRetry(
+  table,
+  combinedPath,
+  metadata,
+  gcpJobId,
+  location,
+  maxAttempts = 3
+) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await createOrRecoverLoadJob(table, combinedPath, metadata, gcpJobId, location);
+    } catch (error) {
+      if (attempt >= maxAttempts || !isTransientNetworkError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+    }
+  }
+  return undefined;
 }
 
 function extractJobErrors(metadata) {
@@ -820,7 +855,7 @@ async function processLoadJob(jobId) {
       schema: tableMetadata.schema,
     };
 
-    const bigQueryJob = await createOrRecoverLoadJob(
+    const bigQueryJob = await createOrRecoverLoadJobWithRetry(
       table,
       combinedPath,
       loadMetadata,
