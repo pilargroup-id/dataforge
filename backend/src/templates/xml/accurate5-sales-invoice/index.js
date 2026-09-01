@@ -1,11 +1,3 @@
-const schema = require('./schema');
-const builder = require('./xml.builder');
-
-module.exports = {
-  type: 'XML',
-  code: 'accurate5-sales-invoice',
-  name: 'Accurate 5 - Sales Invoice',
-  description: 'Template NMEXML SALESINVOICE untuk import Sales Invoice ke Accurate 5 Desktop.',
-  schema,
-  ...builder,
-};
+// Compatibility entrypoint for the existing TemplateRegistry.
+// Business implementation now lives under xml/kato/accurate5-sales-invoice.
+module.exports = require('../kato/accurate5-sales-invoice');
