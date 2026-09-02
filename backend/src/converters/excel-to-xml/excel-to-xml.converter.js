@@ -51,7 +51,7 @@ async function convert({
   const blockingErrors = errors.filter((error) => error.level === 'error');
 
   if (blockingErrors.length) {
-    const err = new Error('Data Excel tidak valid untuk template Accurate 5 Sales Invoice');
+    const err = new Error(`Data Excel tidak valid untuk template ${template.name}`);
     err.code = 'SCHEMA_VALIDATION_FAILED';
     err.validationErrors = {
       template_code: template.code,
