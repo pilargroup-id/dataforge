@@ -97,7 +97,7 @@ async function convert({
   } else {
     try { fs.unlinkSync(partialPath); } catch (_) { /* file may not exist */ }
     try { fs.unlinkSync(xmlPath); } catch (_) { /* file may not exist */ }
-    fs.writeFileSync(partialPath, template.buildXmlStart(branchCode), 'utf8');
+    fs.writeFileSync(partialPath, template.buildXmlHeader(branchCode), 'utf8');
   }
 
   for (let index = lastCompletedIndex; index < invoices.length; index += 1) {
@@ -119,7 +119,7 @@ async function convert({
     }
   }
 
-  fs.appendFileSync(partialPath, template.buildXmlEnd(), 'utf8');
+  fs.appendFileSync(partialPath, template.buildXmlFooter(), 'utf8');
   fs.renameSync(partialPath, xmlPath);
 
   return {

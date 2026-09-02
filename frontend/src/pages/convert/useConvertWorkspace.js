@@ -9,6 +9,7 @@ import {
 } from '../../components/layoute/TemplateIcons.jsx'
 import {
   ACTIVE_STATUSES,
+  BRANCH_CODE_OPTIONS_BY_DATABASE,
   HISTORY_PAGE_SIZE_OPTIONS,
   PROGRESS_STEPS,
   STATUS_LABELS,
@@ -40,6 +41,7 @@ function useConvertWorkspace(targetFormat) {
   const [selectedKey, setSelectedKey] = useState('')
   const [folderName, setFolderName] = useState('')
   const [templateCode, setTemplateCode] = useState('')
+  const [branchCode, setBranchCode] = useState('')
   const [files, setFiles] = useState([])
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -153,10 +155,16 @@ function useConvertWorkspace(targetFormat) {
     label: `Excel → ${item.target_format}`,
   }))
 
-  const templateOptions = (selectedCapability?.templates ?? []).map((template) => ({
+  const templates = selectedCapability?.templates ?? []
+
+  const templateOptions = templates.map((template) => ({
     value: template.code,
     label: template.name || template.code,
   }))
+
+  const selectedTemplate = templates.find((template) => template.code === templateCode) ?? templates[0] ?? null
+  const requiresBranchCode = Boolean(selectedTemplate?.requires_branch_code)
+  const branchCodeOptions = BRANCH_CODE_OPTIONS_BY_DATABASE[selectedTemplate?.database_code] ?? []
 
   const currentBatchCapability = useMemo(
     () => findCapabilityForBatch(capabilities, currentBatch),
@@ -177,8 +185,15 @@ function useConvertWorkspace(targetFormat) {
     setSelectedKey(value)
     setFiles([])
     setTemplateCode('')
+    setBranchCode('')
     setFormError('')
     setUploadResetKey((n) => n + 1)
+  }
+
+  const handleTemplateCodeChange = (value) => {
+    setTemplateCode(value)
+    setBranchCode('')
+    setFormError('')
   }
 
   const handleSubmit = async (event) => {
@@ -187,10 +202,19 @@ function useConvertWorkspace(targetFormat) {
 
     setSubmitting(true)
     try {
-      const batch = await convert({ selectedCapability, isBatchMode, folderName, templateCode, files })
+      const batch = await convert({
+        selectedCapability,
+        isBatchMode,
+        folderName,
+        templateCode,
+        files,
+        requiresBranchCode,
+        branchCode,
+      })
       setCurrentBatch(batch)
       setFiles([])
       setFolderName('')
+      setBranchCode('')
       setUploadResetKey((n) => n + 1)
       setHistoryPage(1)
       setHistoryRefreshKey((key) => key + 1)
@@ -399,7 +423,11 @@ function useConvertWorkspace(targetFormat) {
     setFolderName,
     templateOptions,
     templateCode,
-    setTemplateCode,
+    onTemplateCodeChange: handleTemplateCodeChange,
+    requiresBranchCode,
+    branchCode,
+    setBranchCode,
+    branchCodeOptions,
     uploadResetKey,
     handleFilesChange,
     formError,

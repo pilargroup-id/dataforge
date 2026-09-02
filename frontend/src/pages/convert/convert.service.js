@@ -10,6 +10,12 @@ import {
   pauseConversionBatch,
 } from '../../services/conversion.service.js'
 
+// Belum ada master data BranchCode di backend, jadi daftar ini di-hardcode di FE.
+// Tambahkan entry baru di sini per database_code kalau ada BranchCode/database Accurate lain.
+export const BRANCH_CODE_OPTIONS_BY_DATABASE = {
+  KATO: [{ value: '682500002168', label: 'KATO' }],
+}
+
 export const ACTIVE_STATUSES = ['UPLOADING', 'VALIDATING', 'QUEUED', 'PROCESSING', 'PAUSING', 'COMPLETING']
 export const PAUSABLE_STATUSES = ['QUEUED', 'VALIDATING', 'PROCESSING']
 export const CANCELLABLE_STATUSES = ['QUEUED', 'VALIDATING', 'PROCESSING', 'PAUSING', 'PAUSED', 'COMPLETING']
@@ -139,16 +145,32 @@ export async function fetchConversionBatch(id) {
   return getConversionBatch(id)
 }
 
-function validateConversionForm({ selectedCapability, files, isBatchMode, folderName }) {
+function validateConversionForm({ selectedCapability, files, isBatchMode, folderName, requiresBranchCode, branchCode }) {
   if (!selectedCapability) return 'Pilih jenis konversi terlebih dahulu'
   if (files.length === 0) return 'Pilih minimal satu file untuk dikonversi'
   if (isBatchMode && !folderName.trim()) return 'Nama folder / batch wajib diisi'
   if (!isBatchMode && files.length > 1) return 'Konversi ini hanya menerima 1 file'
+  if (requiresBranchCode && !branchCode.trim()) return 'BranchCode wajib diisi'
   return ''
 }
 
-export async function convert({ selectedCapability, isBatchMode, folderName, templateCode, files }) {
-  const validationError = validateConversionForm({ selectedCapability, files, isBatchMode, folderName })
+export async function convert({
+  selectedCapability,
+  isBatchMode,
+  folderName,
+  templateCode,
+  files,
+  requiresBranchCode,
+  branchCode,
+}) {
+  const validationError = validateConversionForm({
+    selectedCapability,
+    files,
+    isBatchMode,
+    folderName,
+    requiresBranchCode,
+    branchCode,
+  })
   if (validationError) {
     throw new Error(validationError)
   }
@@ -159,6 +181,9 @@ export async function convert({ selectedCapability, isBatchMode, folderName, tem
   }
   if (templateCode) {
     formData.append('template_code', templateCode)
+  }
+  if (branchCode?.trim()) {
+    formData.append('branch_code', branchCode.trim())
   }
   files.forEach((file) => formData.append('files', file, file.name))
 

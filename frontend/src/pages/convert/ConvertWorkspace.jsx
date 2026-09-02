@@ -37,18 +37,21 @@ function ConvertWorkspace({ targetFormat, activePage }) {
               onFolderNameChange={workspace.setFolderName}
               templateOptions={workspace.templateOptions}
               templateCode={workspace.templateCode}
-              onTemplateCodeChange={workspace.setTemplateCode}
+              onTemplateCodeChange={workspace.onTemplateCodeChange}
+              requiresBranchCode={workspace.requiresBranchCode}
+              branchCode={workspace.branchCode}
+              onBranchCodeChange={workspace.setBranchCode}
+              branchCodeOptions={workspace.branchCodeOptions}
               uploadResetKey={workspace.uploadResetKey}
               onFilesChange={workspace.handleFilesChange}
               formError={workspace.formError}
-              currentBatch={workspace.currentBatch}
-              historyMeta={workspace.historyMeta}
             />
 
             <CardViewConvert
               targetFormat={targetFormat}
               resultRef={workspace.resultRef}
               currentBatch={workspace.currentBatch}
+              historyMeta={workspace.historyMeta}
               progressPercent={workspace.progressPercent}
               statusTone={workspace.statusTone}
               activeStepIndex={workspace.activeStepIndex}

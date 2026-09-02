@@ -6098,6 +6098,29 @@ select {
   color: var(--neutral-gray);
 }
 
+.convert-page__summary-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.convert-page__summary-row .convert-page__result-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.convert-page__stat-group--aside {
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: 150px;
+  gap: 0.5rem;
+}
+
+.convert-page__stat-group--aside .convert-page__stat {
+  padding: 0.55rem 0.65rem;
+}
+
 .convert-page__stepper {
   display: grid;
   gap: 0.6rem;
@@ -6330,6 +6353,14 @@ select {
 @media (max-width: 560px) {
   .convert-page__config {
     grid-template-columns: 1fr;
+  }
+
+  .convert-page__summary-row {
+    gap: 0.5rem;
+  }
+
+  .convert-page__stat-group--aside {
+    width: 128px;
   }
 
   .convert-page__actionbar-buttons {

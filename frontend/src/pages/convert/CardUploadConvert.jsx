@@ -1,6 +1,5 @@
 import { Dropdown, TextField } from '../../components/forms'
 import Upload from '../../components/forms/Upload.jsx'
-import { Chart01, FileText01 } from '../../components/layoute/TemplateIcons.jsx'
 
 function CardUploadConvert({
   selectedKey,
@@ -12,11 +11,13 @@ function CardUploadConvert({
   templateOptions,
   templateCode,
   onTemplateCodeChange,
+  requiresBranchCode,
+  branchCode,
+  onBranchCodeChange,
+  branchCodeOptions,
   uploadResetKey,
   onFilesChange,
   formError,
-  currentBatch,
-  historyMeta,
 }) {
   return (
     <div className="convert-page__panel">
@@ -41,6 +42,17 @@ function CardUploadConvert({
           />
         ) : null}
 
+        {requiresBranchCode ? (
+          <Dropdown
+            label="BranchCode"
+            value={branchCode}
+            options={branchCodeOptions}
+            placeholder="Pilih BranchCode"
+            required
+            onChange={onBranchCodeChange}
+          />
+        ) : null}
+
         {templateOptions.length > 0 ? (
           <Dropdown
             label="Template"
@@ -50,28 +62,6 @@ function CardUploadConvert({
             onChange={onTemplateCodeChange}
           />
         ) : null}
-
-        <div className="convert-page__stat-group">
-          <div className="convert-page__stat">
-            <span className="convert-page__stat-icon">
-              <FileText01 size={18} aria-hidden="true" />
-            </span>
-            <div className="convert-page__stat-copy">
-              <p className="convert-page__stat-label">Batch Saat Ini</p>
-              <p className="convert-page__stat-value">{currentBatch?.batch_name ?? '-'}</p>
-            </div>
-          </div>
-
-          <div className="convert-page__stat">
-            <span className="convert-page__stat-icon">
-              <Chart01 size={18} aria-hidden="true" />
-            </span>
-            <div className="convert-page__stat-copy">
-              <p className="convert-page__stat-label">Total Diproses</p>
-              <p className="convert-page__stat-value">{historyMeta.total ?? '-'}</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       <Upload

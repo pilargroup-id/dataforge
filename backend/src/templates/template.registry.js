@@ -24,6 +24,9 @@ function listByType(type) {
       code: template.code,
       name: template.name,
       description: template.description,
+      database_code: template.database_code || null,
+      transaction_code: template.transaction_code || null,
+      requires_branch_code: Boolean(template.requires_branch_code),
     }));
 }
 
