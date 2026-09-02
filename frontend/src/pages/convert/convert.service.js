@@ -13,7 +13,7 @@ import {
 // Belum ada master data BranchCode di backend, jadi daftar ini di-hardcode di FE.
 // Tambahkan entry baru di sini per database_code kalau ada BranchCode/database Accurate lain.
 export const BRANCH_CODE_OPTIONS_BY_DATABASE = {
-  KATO: [{ value: '682500002168', label: 'KATO' }],
+  KATO: [{ value: '1513362031', label: 'KATO' }],
 }
 
 export const ACTIVE_STATUSES = ['UPLOADING', 'VALIDATING', 'QUEUED', 'PROCESSING', 'PAUSING', 'COMPLETING']
