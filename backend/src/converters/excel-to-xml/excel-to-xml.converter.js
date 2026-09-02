@@ -42,8 +42,7 @@ async function convert({
   const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
     header: 1,
     defval: '',
-    raw: false,
-    dateNF: 'yyyy-mm-dd',
+    raw: true,
   });
 
   const rows = template.parseRows(rawRows, template.schema);
