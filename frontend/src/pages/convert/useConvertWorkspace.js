@@ -157,14 +157,30 @@ function useConvertWorkspace(targetFormat) {
 
   const templates = selectedCapability?.templates ?? []
 
-  const templateOptions = templates.map((template) => ({
+  const branchGroups = []
+  const seenBranchValues = new Set()
+  templates.forEach((template) => {
+    if (!template.database_code) return
+    const options = BRANCH_CODE_OPTIONS_BY_DATABASE[template.database_code] ?? []
+    options.forEach((option) => {
+      if (seenBranchValues.has(option.value)) return
+      seenBranchValues.add(option.value)
+      branchGroups.push({ ...option, database_code: template.database_code })
+    })
+  })
+
+  const requiresBranchCode = templates.some((template) => template.requires_branch_code)
+  const branchCodeOptions = branchGroups.map(({ value, label }) => ({ value, label }))
+
+  const selectedBranchGroup = branchGroups.find((group) => group.value === branchCode) ?? null
+  const visibleTemplates = selectedBranchGroup
+    ? templates.filter((template) => template.database_code === selectedBranchGroup.database_code)
+    : templates
+
+  const templateOptions = visibleTemplates.map((template) => ({
     value: template.code,
     label: template.name || template.code,
   }))
-
-  const selectedTemplate = templates.find((template) => template.code === templateCode) ?? templates[0] ?? null
-  const requiresBranchCode = Boolean(selectedTemplate?.requires_branch_code)
-  const branchCodeOptions = BRANCH_CODE_OPTIONS_BY_DATABASE[selectedTemplate?.database_code] ?? []
 
   const currentBatchCapability = useMemo(
     () => findCapabilityForBatch(capabilities, currentBatch),
@@ -192,8 +208,17 @@ function useConvertWorkspace(targetFormat) {
 
   const handleTemplateCodeChange = (value) => {
     setTemplateCode(value)
-    setBranchCode('')
     setFormError('')
+  }
+
+  const handleBranchCodeChange = (value) => {
+    setBranchCode(value)
+    setFormError('')
+    const group = branchGroups.find((option) => option.value === value) ?? null
+    const currentTemplate = templates.find((template) => template.code === templateCode)
+    if (currentTemplate && group && currentTemplate.database_code !== group.database_code) {
+      setTemplateCode('')
+    }
   }
 
   const handleSubmit = async (event) => {
@@ -426,7 +451,7 @@ function useConvertWorkspace(targetFormat) {
     onTemplateCodeChange: handleTemplateCodeChange,
     requiresBranchCode,
     branchCode,
-    setBranchCode,
+    onBranchCodeChange: handleBranchCodeChange,
     branchCodeOptions,
     uploadResetKey,
     handleFilesChange,

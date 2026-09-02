@@ -40,7 +40,7 @@ function ConvertWorkspace({ targetFormat, activePage }) {
               onTemplateCodeChange={workspace.onTemplateCodeChange}
               requiresBranchCode={workspace.requiresBranchCode}
               branchCode={workspace.branchCode}
-              onBranchCodeChange={workspace.setBranchCode}
+              onBranchCodeChange={workspace.onBranchCodeChange}
               branchCodeOptions={workspace.branchCodeOptions}
               uploadResetKey={workspace.uploadResetKey}
               onFilesChange={workspace.handleFilesChange}
