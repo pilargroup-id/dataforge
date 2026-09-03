@@ -2,6 +2,7 @@ import DialogCancel from '../../components/Dialog/dialog-convert/DialogCancel.js
 import CardUploadConvert from './CardUploadConvert.jsx'
 import CardViewConvert from './CardViewConvert.jsx'
 import DataTableHistory from './DataTableHistory.jsx'
+import './convert-theme.css'
 import { HISTORY_PAGE_SIZE_OPTIONS } from './convert.service.js'
 import useConvertWorkspace from './useConvertWorkspace.js'
 
