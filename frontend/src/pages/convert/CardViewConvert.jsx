@@ -42,6 +42,7 @@ function CardViewConvert({
   const canUploadToBigQuery = targetFormat === 'JSONL'
   const bigQueryUploadDisabled =
     !currentBatch || currentBatch.status !== 'COMPLETED' || !currentBatch.download_available
+  const hasSecondaryActions = canUploadToBigQuery || canPause || canContinue || canCancel
 
   return (
     <aside className="convert-page__panel convert-page__panel--status" ref={resultRef}>
@@ -130,8 +131,12 @@ function CardViewConvert({
       </div>
 
       <div className="convert-page__actionbar">
-        <div className="convert-page__actionbar-primary">
-          <button type="submit" className="users-table-card__action" disabled={submitting}>
+        <div className="convert-page__actionbar-buttons convert-page__actionbar-buttons--primary">
+          <button
+            type="submit"
+            className="convert-page__btn convert-page__btn--primary"
+            disabled={submitting}
+          >
             <RefreshCw05
               size={18}
               aria-hidden="true"
@@ -139,9 +144,7 @@ function CardViewConvert({
             />
             {submitting ? 'Mengunggah...' : 'Convert'}
           </button>
-        </div>
 
-        <div className="convert-page__actionbar-buttons">
           <button
             type="button"
             className="convert-page__btn convert-page__btn--outline"
@@ -166,55 +169,59 @@ function CardViewConvert({
             <Eye size={18} aria-hidden="true" />
             Output
           </button>
-
-          {canUploadToBigQuery ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline"
-              onClick={() => setBigQueryDialogOpen(true)}
-              disabled={bigQueryUploadDisabled}
-            >
-              <Upload size={18} aria-hidden="true" />
-              Upload BQ
-            </button>
-          ) : null}
-
-          {canPause ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline"
-              onClick={onPause}
-              disabled={pausing}
-            >
-              <Pause size={18} aria-hidden="true" />
-              {pausing ? 'Menjeda...' : 'Pause'}
-            </button>
-          ) : null}
-
-          {canContinue ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline"
-              onClick={onContinue}
-              disabled={continuing}
-            >
-              <Play size={18} aria-hidden="true" />
-              {continuing ? 'Melanjutkan...' : 'Lanjutkan'}
-            </button>
-          ) : null}
-
-          {canCancel ? (
-            <button
-              type="button"
-              className="convert-page__btn convert-page__btn--outline convert-page__btn--danger"
-              onClick={onCancel}
-              disabled={cancelling}
-            >
-              <XClose size={18} aria-hidden="true" />
-              {cancelling ? 'Membatalkan...' : 'Batalkan'}
-            </button>
-          ) : null}
         </div>
+
+        {hasSecondaryActions ? (
+          <div className="convert-page__actionbar-buttons convert-page__actionbar-buttons--secondary">
+            {canUploadToBigQuery ? (
+              <button
+                type="button"
+                className="convert-page__btn convert-page__btn--outline"
+                onClick={() => setBigQueryDialogOpen(true)}
+                disabled={bigQueryUploadDisabled}
+              >
+                <Upload size={18} aria-hidden="true" />
+                Upload BQ
+              </button>
+            ) : null}
+
+            {canPause ? (
+              <button
+                type="button"
+                className="convert-page__btn convert-page__btn--outline"
+                onClick={onPause}
+                disabled={pausing}
+              >
+                <Pause size={18} aria-hidden="true" />
+                {pausing ? 'Menjeda...' : 'Pause'}
+              </button>
+            ) : null}
+
+            {canContinue ? (
+              <button
+                type="button"
+                className="convert-page__btn convert-page__btn--outline"
+                onClick={onContinue}
+                disabled={continuing}
+              >
+                <Play size={18} aria-hidden="true" />
+                {continuing ? 'Melanjutkan...' : 'Lanjutkan'}
+              </button>
+            ) : null}
+
+            {canCancel ? (
+              <button
+                type="button"
+                className="convert-page__btn convert-page__btn--outline convert-page__btn--danger"
+                onClick={onCancel}
+                disabled={cancelling}
+              >
+                <XClose size={18} aria-hidden="true" />
+                {cancelling ? 'Membatalkan...' : 'Batalkan'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {canUploadToBigQuery ? (
