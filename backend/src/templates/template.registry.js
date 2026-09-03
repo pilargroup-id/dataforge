@@ -1,8 +1,9 @@
 const yosePdf = require('./pdf/yose');
 const accurate5SalesInvoiceXml = require('./xml/kato/accurate5-sales-invoice');
 const accurate5SalesReturnXml = require('./xml/kato/accurate5-sales-return');
+const accurate5PaymentXml = require('./xml/kato/accurate5-payment');
 
-const templates = [yosePdf, accurate5SalesInvoiceXml, accurate5SalesReturnXml];
+const templates = [yosePdf, accurate5SalesInvoiceXml, accurate5SalesReturnXml, accurate5PaymentXml];
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
