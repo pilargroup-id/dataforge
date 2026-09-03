@@ -46,13 +46,14 @@ function ConvertWorkspace({ targetFormat, activePage }) {
               uploadResetKey={workspace.uploadResetKey}
               onFilesChange={workspace.handleFilesChange}
               formError={workspace.formError}
+              currentBatch={workspace.currentBatch}
+              historyMeta={workspace.historyMeta}
             />
 
             <CardViewConvert
               targetFormat={targetFormat}
               resultRef={workspace.resultRef}
               currentBatch={workspace.currentBatch}
-              historyMeta={workspace.historyMeta}
               progressPercent={workspace.progressPercent}
               statusTone={workspace.statusTone}
               activeStepIndex={workspace.activeStepIndex}

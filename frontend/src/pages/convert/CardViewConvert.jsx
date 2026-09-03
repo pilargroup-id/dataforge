@@ -1,10 +1,8 @@
 import { useState } from 'react'
 
 import {
-  Chart01,
   Download,
   Eye,
-  FileText01,
   Pause,
   Play,
   RefreshCw05,
@@ -18,7 +16,6 @@ function CardViewConvert({
   targetFormat,
   resultRef,
   currentBatch,
-  historyMeta,
   progressPercent,
   statusTone,
   activeStepIndex,
@@ -118,46 +115,22 @@ function CardViewConvert({
         </div>
       </div>
 
-      <div className="convert-page__summary-row">
-        <div className={`convert-page__result-summary convert-page__result-summary--${resultSummary.tone}`}>
-          <span className="convert-page__result-summary-icon">
-            <ResultIcon
-              size={18}
-              aria-hidden="true"
-              className={resultSummary.spin ? 'convert-page__spin' : ''}
-            />
-          </span>
-          <div>
-            <p className="convert-page__result-summary-title">{resultSummary.title}</p>
-            <span className="convert-page__result-summary-subtitle">{resultSummary.subtitle}</span>
-          </div>
-        </div>
-
-        <div className="convert-page__stat-group convert-page__stat-group--aside">
-          <div className="convert-page__stat">
-            <span className="convert-page__stat-icon">
-              <FileText01 size={18} aria-hidden="true" />
-            </span>
-            <div className="convert-page__stat-copy">
-              <p className="convert-page__stat-label">Batch Saat Ini</p>
-              <p className="convert-page__stat-value">{currentBatch?.batch_name ?? '-'}</p>
-            </div>
-          </div>
-
-          <div className="convert-page__stat">
-            <span className="convert-page__stat-icon">
-              <Chart01 size={18} aria-hidden="true" />
-            </span>
-            <div className="convert-page__stat-copy">
-              <p className="convert-page__stat-label">Total Diproses</p>
-              <p className="convert-page__stat-value">{historyMeta?.total ?? '-'}</p>
-            </div>
-          </div>
+      <div className={`convert-page__result-summary convert-page__result-summary--${resultSummary.tone}`}>
+        <span className="convert-page__result-summary-icon">
+          <ResultIcon
+            size={18}
+            aria-hidden="true"
+            className={resultSummary.spin ? 'convert-page__spin' : ''}
+          />
+        </span>
+        <div>
+          <p className="convert-page__result-summary-title">{resultSummary.title}</p>
+          <span className="convert-page__result-summary-subtitle">{resultSummary.subtitle}</span>
         </div>
       </div>
 
       <div className="convert-page__actionbar">
-        <div className="convert-page__actionbar-buttons">
+        <div className="convert-page__actionbar-primary">
           <button type="submit" className="users-table-card__action" disabled={submitting}>
             <RefreshCw05
               size={18}
@@ -166,7 +139,9 @@ function CardViewConvert({
             />
             {submitting ? 'Mengunggah...' : 'Convert'}
           </button>
+        </div>
 
+        <div className="convert-page__actionbar-buttons">
           <button
             type="button"
             className="convert-page__btn convert-page__btn--outline"
@@ -200,7 +175,7 @@ function CardViewConvert({
               disabled={bigQueryUploadDisabled}
             >
               <Upload size={18} aria-hidden="true" />
-              Upload Big Query
+              Upload BQ
             </button>
           ) : null}
 

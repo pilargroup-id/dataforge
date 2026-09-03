@@ -18,6 +18,8 @@ function CardUploadConvert({
   uploadResetKey,
   onFilesChange,
   formError,
+  currentBatch,
+  historyMeta,
 }) {
   return (
     <div className="convert-page__panel">
@@ -62,6 +64,20 @@ function CardUploadConvert({
             onChange={onTemplateCodeChange}
           />
         ) : null}
+      </div>
+
+      <div className="convert-page__meta-row">
+        <div className="convert-page__meta-item">
+          <span className="convert-page__meta-label">Batch Saat Ini</span>
+          <span className="convert-page__meta-value" title={currentBatch?.batch_name ?? undefined}>
+            {currentBatch?.batch_name ?? '-'}
+          </span>
+        </div>
+
+        <div className="convert-page__meta-item">
+          <span className="convert-page__meta-label">Total Diproses</span>
+          <span className="convert-page__meta-value">{historyMeta?.total ?? '-'}</span>
+        </div>
       </div>
 
       <Upload

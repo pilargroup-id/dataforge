@@ -22,6 +22,26 @@ const DELETE_ERROR_MESSAGES = {
   IT_ACCESS_REQUIRED: 'Hanya department IT yang dapat mengelola akses ini.',
 }
 
+const NETWORK_ERROR_MESSAGE = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan coba lagi.'
+const GENERIC_SERVER_ERROR_MESSAGE =
+  'Terjadi kesalahan pada server. Coba lagi beberapa saat lagi atau hubungi tim IT jika masalah berlanjut.'
+
+// Backend intentionally returns a generic "Internal Server Error" for unexpected failures
+// (see backend/src/middleware/error.middleware.js) so it never leaks internal details to
+// the client. Mirror that here instead of showing raw backend/network text to the user.
+function resolveErrorMessage(error, knownMessages = {}, fallback = GENERIC_SERVER_ERROR_MESSAGE) {
+  if (error?.code && knownMessages[error.code]) {
+    return knownMessages[error.code]
+  }
+  if (!error?.status) {
+    return NETWORK_ERROR_MESSAGE
+  }
+  if (error.status >= 500) {
+    return GENERIC_SERVER_ERROR_MESSAGE
+  }
+  return error?.message || fallback
+}
+
 function formatDate(value) {
   if (!value) return '-'
   const parsedDate = new Date(value)
@@ -106,7 +126,7 @@ function MasterAccessBQ(props) {
         setAccessList(data)
       } catch (error) {
         if (!isMounted) return
-        setAccessError(error.message || 'Gagal memuat data akses dataset BigQuery')
+        setAccessError(resolveErrorMessage(error, {}, 'Gagal memuat data akses dataset BigQuery'))
       } finally {
         if (isMounted) setAccessLoading(false)
       }
@@ -173,7 +193,7 @@ function MasterAccessBQ(props) {
       setDeletingRecord(null)
       handleRefresh()
     } catch (error) {
-      setDeleteError(DELETE_ERROR_MESSAGES[error.code] || error.message || 'Gagal menghapus akses dataset')
+      setDeleteError(resolveErrorMessage(error, DELETE_ERROR_MESSAGES, 'Gagal menghapus akses dataset'))
     } finally {
       setDeleteLoading(false)
     }
@@ -275,7 +295,14 @@ function MasterAccessBQ(props) {
         </div>
       </div>
 
-      {accessError ? <p className="convert-page__error">{accessError}</p> : null}
+      {accessError ? (
+        <div className="convert-page__error convert-page__error--with-action">
+          <span>{accessError}</span>
+          <button type="button" className="convert-page__error-retry" onClick={handleRefresh}>
+            Coba Lagi
+          </button>
+        </div>
+      ) : null}
 
       <DataTableMasterPermission
         rows={filteredAccessList}
