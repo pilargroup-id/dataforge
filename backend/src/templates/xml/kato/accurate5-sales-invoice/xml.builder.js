@@ -22,6 +22,18 @@ function normalizeDate(value) {
   const text = cellToString(value);
   if (!text) return '';
 
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    const serial = Number(text);
+    if (Number.isFinite(serial) && serial > 0 && serial < 2958466) {
+      const excelEpochUtc = Date.UTC(1899, 11, 30);
+      const date = new Date(excelEpochUtc + Math.floor(serial) * 24 * 60 * 60 * 1000);
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
 
   const slash = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -37,6 +49,17 @@ function normalizeDate(value) {
   }
 
   return text;
+}
+
+function normalizeBinaryFlag(value, fallback = 0) {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'number') return value === 0 ? 0 : 1;
+
+  const text = normalizeWhitespace(value).toLowerCase();
+  if (['1', 'yes', 'y', 'ya', 'true'].includes(text)) return 1;
+  if (['0', 'no', 'n', 'tidak', 'false'].includes(text)) return 0;
+  return fallback;
 }
 
 function escapeXml(value) {
@@ -110,6 +133,7 @@ function mapFinanceRow(row, headerIndex, schema, rowNumber) {
   mapped.INVOICEDATE = normalizeDate(mapped.INVOICEDATE);
   mapped.SHIPDATE = normalizeDate(mapped.SHIPDATE || mapped.INVOICEDATE);
   mapped.TAXDATE = normalizeDate(mapped.TAXDATE || mapped.INVOICEDATE);
+  mapped.CUSTOMERISTAXABLE = normalizeBinaryFlag(mapped.CUSTOMERISTAXABLE, 0);
   mapped.__source = source;
   mapped.__rowNumber = rowNumber;
   return mapped;
@@ -145,18 +169,48 @@ function parseRows(rawRows, schema) {
     .map(({ row, rowNumber }) => mapFinanceRow(row, headerIndex, schema, rowNumber));
 }
 
-// Compatibility name for the existing Excel->XML converter.
-// IMPORTANT: this function intentionally DOES NOT group equal invoice numbers.
-// One source row always becomes one SALESINVOICE with one ITEMLINE.
+function sameValue(left, right) {
+  return normalizeWhitespace(left) === normalizeWhitespace(right);
+}
+
+function validateGroupHeader(base, row, rowNumber, errors) {
+  const checks = [
+    ['INVOICEDATE', 'Tgl Faktur'],
+    ['CUSTOMERID', 'Customer ID'],
+    ['TERMSID', 'Term Transaction'],
+    ['WAREHOUSEID', 'Location'],
+    ['SALESMANID', 'Sales Name'],
+    ['RATE', 'Exchange Rate'],
+    ['FISCALRATE', 'Exchange Rate'],
+    ['ARACCOUNT', 'AR Account'],
+    ['CURRENCYNAME', 'Currency'],
+    ['TAX1CODE', 'Tax Code'],
+    ['CUSTOMERISTAXABLE', 'Required E-Faktur'],
+    ['DESCRIPTION', 'Memo Header'],
+  ];
+
+  checks.forEach(([field, label]) => {
+    if (!sameValue(base[field], row[field])) {
+      errors.push({
+        row: rowNumber,
+        level: 'warn',
+        message: `${label} berbeda untuk Accurate Inv. No. ${base.INVOICENO}; header invoice memakai nilai dari row pertama`,
+      });
+    }
+  });
+}
+
 function groupInvoices(rows) {
   const invoices = [];
   const errors = [];
+  const byInvoiceNo = new Map();
 
   rows.forEach((row) => {
     const rowNumber = row.__rowNumber || '-';
 
     if (!row.INVOICENO) {
       errors.push({ row: rowNumber, level: 'error', message: 'Accurate Inv. No. kosong' });
+      return;
     }
     if (!row.ITEMNO) {
       errors.push({ row: rowNumber, level: 'error', message: 'Kode Barang kosong' });
@@ -167,21 +221,29 @@ function groupInvoices(rows) {
     if (row.UNITPRICE === '' || !Number.isFinite(Number(row.UNITPRICE))) {
       errors.push({ row: rowNumber, level: 'error', message: 'UNIT PRICE tidak valid' });
     }
-
     if (!row.CUSTOMERID) {
-      errors.push({ row: rowNumber, level: 'warn', message: 'Customer ID kosong' });
+      errors.push({ row: rowNumber, level: 'error', message: 'Customer ID kosong' });
     }
     if (!row.INVOICEDATE) {
-      errors.push({ row: rowNumber, level: 'warn', message: 'Tgl Faktur kosong' });
+      errors.push({ row: rowNumber, level: 'error', message: 'Tgl Faktur kosong' });
     }
 
-    invoices.push({
-      INVOICENO: row.INVOICENO,
-      header: row,
-      items: [row],
-      source_row_number: rowNumber,
-      checkpoint_key: `${row.INVOICENO || 'NO-INVOICE'}#ROW-${rowNumber}`,
-    });
+    const existing = byInvoiceNo.get(row.INVOICENO);
+    if (!existing) {
+      const invoice = {
+        INVOICENO: row.INVOICENO,
+        header: row,
+        items: [row],
+        source_row_number: rowNumber,
+        checkpoint_key: row.INVOICENO,
+      };
+      byInvoiceNo.set(row.INVOICENO, invoice);
+      invoices.push(invoice);
+      return;
+    }
+
+    validateGroupHeader(existing.header, row, rowNumber, errors);
+    existing.items.push(row);
   });
 
   return { invoices, errors };
@@ -198,72 +260,72 @@ function buildXmlHeader(branchCode) {
   return `<?xml version="1.0"?>\n<NMEXML EximID="1" BranchCode="${escapeXml(normalizedBranchCode)}" ACCOUNTANTCOPYID=""><TRANSACTIONS OnError="CONTINUE">`;
 }
 
-function buildItemLineXml(item) {
+function buildItemLineXml(item, itemIndex) {
   const unitPrice = num(item.UNITPRICE, 0);
   let out = '<ITEMLINE operation="Add">';
-  out += tag('KeyID', item.KEYID || 1);
+  out += tag('KeyID', item.KEYID || itemIndex + 1);
   out += tag('ITEMNO', item.ITEMNO);
   out += tag('QUANTITY', num(item.QUANTITY, 0));
-  out += tag('ITEMUNIT', item.ITEMUNIT);
-  out += tag('UNITRATIO', num(item.UNITRATIO, 1));
+  out += '<ITEMUNIT/>';
+  out += tag('UNITRATIO', 1);
   for (let i = 1; i <= 10; i += 1) out += `<ITEMRESERVED${i}/>`;
-  out += tag('ITEMOVDESC', item.ITEMOVDESC);
+  out += '<ITEMOVDESC/>';
   out += tag('UNITPRICE', unitPrice);
-  out += tag('ITEMDISCPC', item.ITEMDISCPC);
-  out += tag('TAXCODES', item.TAXCODES);
+  out += '<ITEMDISCPC/>';
+  out += '<TAXCODES/>';
   out += '<GROUPSEQ/>';
   out += tag('SOSEQ', 0);
   out += tag('BRUTOUNITPRICE', unitPrice);
   out += tag('WAREHOUSEID', item.WAREHOUSEID_ITEM || item.WAREHOUSEID);
   out += tag('QTYCONTROL', 0);
-  out += item.DOID ? tag('DOSEQ', 1) : '<DOSEQ/>';
-  out += tag('SOID', item.SOID);
-  out += tag('DOID', item.DOID);
+  out += '<DOSEQ/>';
+  out += '<SOID/>';
+  out += '<DOID/>';
   out += '</ITEMLINE>';
   return out;
 }
 
 function buildInvoiceXml(invoice, requestId) {
   const h = invoice.header;
-  const item = invoice.items[0];
   let out = `<SALESINVOICE operation="Add" REQUESTID="${requestId}">`;
 
-  // Final KATO SI rule: exactly one ITEMLINE per source row/invoice block.
-  out += buildItemLineXml(item);
+  invoice.items.forEach((item, itemIndex) => {
+    out += buildItemLineXml(item, itemIndex);
+  });
 
   out += tag('INVOICENO', h.INVOICENO);
   out += tag('INVOICEDATE', h.INVOICEDATE);
   out += tag('TAX1CODE', h.TAX1CODE);
-  out += tag('TAX2CODE', h.TAX2CODE);
-  out += tag('TAX1RATE', num(h.TAX1RATE, 0));
-  out += tag('TAX2RATE', num(h.TAX2RATE, 0));
+  out += '<TAX2CODE/>';
+  out += tag('TAX1RATE', 0);
+  out += tag('TAX2RATE', 0);
   out += tag('RATE', num(h.RATE, 1));
-  out += tag('INCLUSIVETAX', num(h.INCLUSIVETAX, 0));
-  out += tag('CUSTOMERISTAXABLE', num(h.CUSTOMERISTAXABLE, 0));
-  out += tag('CASHDISCOUNT', num(h.CASHDISCOUNT, 0));
-  out += tag('CASHDISCPC', h.CASHDISCPC);
-  out += tag('FREIGHT', num(h.FREIGHT, 0));
+  out += tag('INCLUSIVETAX', 1);
+  out += tag('CUSTOMERISTAXABLE', normalizeBinaryFlag(h.CUSTOMERISTAXABLE, 0));
+  out += tag('CASHDISCOUNT', 0);
+  out += '<CASHDISCPC/>';
+  out += tag('FREIGHT', 0);
   out += tag('TERMSID', h.TERMSID);
-  out += tag('SHIPVIA', h.SHIPVIA);
+  out += tag('SHIPVIA', 'EKSPEDISI OL');
   out += '<FOB/>';
-  out += tag('PURCHASEORDERNO', h.PURCHASEORDERNO);
+  out += '<PURCHASEORDERNO/>';
   out += tag('WAREHOUSEID', h.WAREHOUSEID);
   out += tag('DESCRIPTION', h.DESCRIPTION);
   out += tag('SHIPDATE', h.SHIPDATE || h.INVOICEDATE);
-  out += tag('DELIVERYORDER', h.DELIVERYORDER);
+  out += '<DELIVERYORDER/>';
   out += tag('FISCALRATE', num(h.FISCALRATE, 1));
   out += tag('TAXDATE', h.TAXDATE || h.INVOICEDATE);
   out += tag('CUSTOMERID', h.CUSTOMERID);
   out += `<SALESMANID><LASTNAME></LASTNAME>${tag('FIRSTNAME', h.SALESMANID)}</SALESMANID>`;
   out += tag('PRINTED', 0);
-  out += tag('SHIPTO1', h.SHIPTO1);
-  out += tag('SHIPTO2', h.SHIPTO2);
-  out += tag('SHIPTO3', h.SHIPTO3);
-  out += tag('SHIPTO4', h.SHIPTO4);
-  out += tag('SHIPTO5', h.SHIPTO5);
+  out += '<SHIPTO1/>';
+  out += '<SHIPTO2/>';
+  out += '<SHIPTO3/>';
+  out += '<SHIPTO4/>';
+  out += '<SHIPTO5/>';
   out += tag('ARACCOUNT', h.ARACCOUNT);
   out += tag('TAXFORMNUMBER', h.TAXFORMNUMBER);
-  out += tag('TAXFORMCODE', h.TAXFORMCODE);
+  out += '<TAXFORMCODE/>';
   out += tag('CURRENCYNAME', h.CURRENCYNAME);
   out += '<AUTOMATICINSERTGROUPING/>';
   out += '</SALESINVOICE>';

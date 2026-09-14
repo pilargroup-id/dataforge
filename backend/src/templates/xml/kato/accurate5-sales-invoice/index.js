@@ -10,7 +10,7 @@ module.exports = {
   transaction_code: 'SALES_INVOICE',
   requires_branch_code: true,
   input_mapping_mode: 'HEADER',
-  row_mode: 'ONE_ROW_ONE_SALESINVOICE',
+  row_mode: 'GROUP_BY_INVOICE_NO',
   schema,
   ...builder,
 };
