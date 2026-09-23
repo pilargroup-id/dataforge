@@ -299,8 +299,8 @@ function buildInvoiceXml(invoice, requestId) {
   out += tag('TAX1RATE', 0);
   out += tag('TAX2RATE', 0);
   out += tag('RATE', num(h.RATE, 1));
-  out += tag('INCLUSIVETAX', 0);
-  out += '<CUSTOMERISTAXABLE/>';
+  out += tag('INCLUSIVETAX', 1);
+  out += tag('CUSTOMERISTAXABLE', 1);
   out += tag('CASHDISCOUNT', 0);
   out += '<CASHDISCPC/>';
   out += tag('FREIGHT', 0);
