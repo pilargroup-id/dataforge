@@ -74,10 +74,11 @@ const FIELD_MAP = {
   CURRENCYNAME: 'Currency',
   TAXFORMNUMBER: 'Faktur No',
   CUSTOMERISTAXABLE: 'Required E-Faktur',
-
+  
   KEYID: 'Urut',
   ITEMNO: 'Kode Barang',
   ITEMOVDESC: 'Display Name',
+  ITEMUNIT: 'UOM',
   QUANTITY: 'QUANTITY',
   UNITPRICE: 'UNIT PRICE',
   WAREHOUSEID_ITEM: 'Location',

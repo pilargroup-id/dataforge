@@ -265,7 +265,7 @@ function buildItemLineXml(item, itemIndex) {
   out += tag('KeyID', item.KEYID || itemIndex + 1);
   out += tag('ITEMNO', item.ITEMNO);
   out += tag('QUANTITY', num(item.QUANTITY, 0));
-  out += '<ITEMUNIT/>';
+  out += tag('ITEMUNIT', item.ITEMUNIT);
   out += tag('UNITRATIO', 1);
   for (let i = 1; i <= 10; i += 1) out += `<ITEMRESERVED${i}/>`;
   out += tag('ITEMOVDESC', item.ITEMOVDESC);
