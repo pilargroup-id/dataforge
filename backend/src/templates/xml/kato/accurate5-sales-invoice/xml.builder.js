@@ -184,7 +184,6 @@ function validateGroupHeader(base, row, rowNumber, errors) {
     ['FISCALRATE', 'Exchange Rate'],
     ['ARACCOUNT', 'AR Account'],
     ['CURRENCYNAME', 'Currency'],
-    ['TAX1CODE', 'Tax Code'],
     ['CUSTOMERISTAXABLE', 'Required E-Faktur'],
     ['DESCRIPTION', 'Memo Header'],
   ];
@@ -269,10 +268,10 @@ function buildItemLineXml(item, itemIndex) {
   out += '<ITEMUNIT/>';
   out += tag('UNITRATIO', 1);
   for (let i = 1; i <= 10; i += 1) out += `<ITEMRESERVED${i}/>`;
-  out += '<ITEMOVDESC/>';
+  out += tag('ITEMOVDESC', item.ITEMOVDESC);
   out += tag('UNITPRICE', unitPrice);
   out += '<ITEMDISCPC/>';
-  out += '<TAXCODES/>';
+  out += tag('TAXCODES', 4);
   out += '<GROUPSEQ/>';
   out += tag('SOSEQ', 0);
   out += tag('BRUTOUNITPRICE', unitPrice);
@@ -295,12 +294,12 @@ function buildInvoiceXml(invoice, requestId) {
 
   out += tag('INVOICENO', h.INVOICENO);
   out += tag('INVOICEDATE', h.INVOICEDATE);
-  out += tag('TAX1CODE', h.TAX1CODE);
+  out += tag('TAX1CODE', 4);
   out += '<TAX2CODE/>';
   out += tag('TAX1RATE', 0);
   out += tag('TAX2RATE', 0);
   out += tag('RATE', num(h.RATE, 1));
-  out += tag('INCLUSIVETAX', 1);
+  out += tag('INCLUSIVETAX', 0);
   out += tag('CUSTOMERISTAXABLE', normalizeBinaryFlag(h.CUSTOMERISTAXABLE, 0));
   out += tag('CASHDISCOUNT', 0);
   out += '<CASHDISCPC/>';
