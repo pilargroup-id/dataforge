@@ -36,6 +36,7 @@ const REQUIRED_HEADERS = [
 const FIELD_MAP = {
   SEQUENCENO: 'No Pelunasan',
   PAYMENTDATE: 'TGL PELUNASAN',
+  CHEQUEDATE: 'TGL PELUNASAN',
   BILLTOID: 'Customer ID',
   RATE: 'Exchange Rate',
   DESCRIPTION: 'Memo Header',
@@ -59,7 +60,6 @@ module.exports = {
   defaults: {
     BANKACCOUNT: '1000.02.01',
     CHEQUENO: '',
-    CHEQUEDATE: '',
     FISCALPMT: '',
     VOID: '',
     OVERPAYUSED: '',

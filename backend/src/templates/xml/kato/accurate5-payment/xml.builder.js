@@ -19,6 +19,20 @@ function cellToString(value) {
 }
 
 function normalizeDate(value) {
+  if (value === null || value === undefined || value === '') return '';
+
+  // Excel serial date, contoh: 46282 -> 2026-09-17
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const excelEpoch = Date.UTC(1899, 11, 30);
+    const date = new Date(excelEpoch + value * 86400000);
+
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
   const text = cellToString(value);
   if (!text) return '';
 
@@ -38,7 +52,6 @@ function normalizeDate(value) {
 
   return text;
 }
-
 function parseAmount(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
   const text = cellToString(value);
@@ -117,6 +130,7 @@ function mapFinanceRow(row, headerIndex, schema, rowNumber) {
   });
 
   mapped.PAYMENTDATE = normalizeDate(mapped.PAYMENTDATE);
+  mapped.CHEQUEDATE = normalizeDate(mapped.CHEQUEDATE || mapped.PAYMENTDATE);
   mapped.__source = source;
   mapped.__rowNumber = rowNumber;
   return mapped;
