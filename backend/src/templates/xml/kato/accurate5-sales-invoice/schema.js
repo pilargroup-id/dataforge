@@ -28,7 +28,7 @@ const SOURCE_HEADERS = [
   'Exchange Rate',
   'Memo Header',
   'Item',
-  'ID Item',
+  'UOM',
   'QUANTITY',
   'UNIT PRICE',
   'Total',
@@ -54,6 +54,7 @@ const REQUIRED_HEADERS = [
   'Location',
   'Urut',
   'Kode Barang',
+  'UOM',
   'QUANTITY',
   'UNIT PRICE',
 ];
