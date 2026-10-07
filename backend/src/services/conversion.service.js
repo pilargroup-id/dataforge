@@ -428,9 +428,41 @@ async function cancelBatch(batchId) {
   return batch;
 }
 
+let pdfStartupRecoveryWorkerRunning = false;
+
+async function runRecoveredPdfQueue(candidates) {
+  if (pdfStartupRecoveryWorkerRunning) {
+    console.log('[conversion] PDF startup recovery worker is already running; duplicate start skipped');
+    return;
+  }
+
+  pdfStartupRecoveryWorkerRunning = true;
+
+  try {
+    for (const candidate of candidates) {
+      const latest = await ConversionBatchModel.findById(candidate.batchId);
+      if (!latest || latest.status !== STATUS.QUEUED) {
+        continue;
+      }
+
+      console.log(`[conversion] PDF startup recovery processing batch ${candidate.batchId}`);
+
+      try {
+        await processBatch(candidate);
+      } catch (error) {
+        console.error(`[conversion] startup recovery worker failed for ${candidate.batchId}:`, error);
+      }
+    }
+  } finally {
+    pdfStartupRecoveryWorkerRunning = false;
+    console.log('[conversion] PDF startup recovery worker finished');
+  }
+}
+
 async function recoverInterruptedPdfConversions() {
   const batches = await ConversionBatchModel.listRecoverablePdfBatches();
-  let resumed = 0;
+  const candidates = [];
+  let queued = 0;
   let paused = 0;
   let failed = 0;
 
@@ -486,26 +518,18 @@ async function recoverInterruptedPdfConversions() {
         if (!moved) continue;
       }
 
-      const options = parseJson(batch.conversion_options, {}) || {};
-      const resumeState = parseJson(batch.checkpoint_data, {}) || {};
-
-      setImmediate(() => {
-        processBatch({
-          batchId: batch.id,
-          batchName: batch.batch_name,
-          converter,
-          files,
-          sourceFormat: batch.source_format,
-          targetFormat: batch.target_format,
-          templateCode: batch.template_code,
-          options,
-          resumeState,
-        }).catch((error) => {
-          console.error(`[conversion] startup recovery failed for ${batch.id}:`, error);
-        });
+      candidates.push({
+        batchId: batch.id,
+        batchName: batch.batch_name,
+        converter,
+        files,
+        sourceFormat: batch.source_format,
+        targetFormat: batch.target_format,
+        templateCode: batch.template_code,
+        options: parseJson(batch.conversion_options, {}) || {},
+        resumeState: parseJson(batch.checkpoint_data, {}) || {},
       });
-
-      resumed += 1;
+      queued += 1;
     } catch (error) {
       console.error(`[conversion] recovery inspection failed for ${batch.id}:`, error);
       try {
@@ -517,7 +541,15 @@ async function recoverInterruptedPdfConversions() {
     }
   }
 
-  return { resumed, paused, failed, total: batches.length };
+  if (candidates.length) {
+    setImmediate(() => {
+      runRecoveredPdfQueue(candidates).catch((error) => {
+        console.error('[conversion] PDF startup recovery worker failed:', error);
+      });
+    });
+  }
+
+  return { queued, paused, failed, total: batches.length };
 }
 
 module.exports = {

@@ -31,6 +31,7 @@ module.exports = {
   pdf: {
     renderConcurrency: numberEnv('PDF_RENDER_CONCURRENCY', 4),
     checkpointSize: numberEnv('PDF_CHECKPOINT_SIZE', 20),
+    startupRecoveryDelayMs: numberEnv('PDF_STARTUP_RECOVERY_DELAY_MS', 30000),
   },
   expiry: {
     hours: numberEnv('RESULT_EXPIRY_HOURS', 6),
