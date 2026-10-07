@@ -25,6 +25,12 @@ module.exports = {
     maxPartSizeBytes: numberEnv('MAX_OUTPUT_SIZE_MB', 99) * 1024 * 1024,
     archiveTimeoutMs: numberEnv('ARCHIVE_TIMEOUT_MS', 10 * 60 * 1000),
     checkpointIntervalRows: numberEnv('CONVERSION_CHECKPOINT_ROWS', 100),
+    pdfArchiveCompressionLevel: numberEnv('PDF_ARCHIVE_COMPRESSION_LEVEL', 0),
+    pdfArchiveTimeoutMs: numberEnv('PDF_ARCHIVE_TIMEOUT_MS', 60 * 60 * 1000),
+  },
+  pdf: {
+    renderConcurrency: numberEnv('PDF_RENDER_CONCURRENCY', 4),
+    checkpointSize: numberEnv('PDF_CHECKPOINT_SIZE', 20),
   },
   expiry: {
     hours: numberEnv('RESULT_EXPIRY_HOURS', 6),

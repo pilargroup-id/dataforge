@@ -83,6 +83,7 @@ async function processBatch({
   const resultDir = path.join(dataforgeConfig.storage.resultRoot, batchId);
   const outputDir = path.join(resultDir, 'output');
   ensureDir(outputDir);
+  const persistedOutputNames = new Set();
 
   try {
     await transitionOrControl(batchId, [STATUS.QUEUED], STATUS.VALIDATING, {
@@ -92,6 +93,7 @@ async function processBatch({
 
     const outputRows = await ConversionFileModel.listByBatchIdAndRole(batchId, 'OUTPUT');
     const existingOutputs = outputRows.map(existingOutputDescriptor);
+    existingOutputs.forEach((file) => persistedOutputNames.add(file.file_name));
 
     const conversion = await converter.convert({
       files,
@@ -103,6 +105,8 @@ async function processBatch({
       existingOutputs,
       maxPartSizeBytes: dataforgeConfig.output.maxPartSizeBytes,
       checkpointIntervalRows: dataforgeConfig.output.checkpointIntervalRows,
+      pdfConcurrency: dataforgeConfig.pdf.renderConcurrency,
+      pdfCheckpointSize: dataforgeConfig.pdf.checkpointSize,
       onValidated: async (meta = {}) => {
         if (meta.total_records !== undefined) {
           const alive = await ConversionBatchModel.updateProgress(batchId, {
@@ -114,12 +118,17 @@ async function processBatch({
         await transitionOrControl(batchId, [STATUS.VALIDATING], STATUS.PROCESSING);
       },
       onOutput: async (file) => {
-        const batch = await ConversionBatchModel.findById(batchId);
-        if (!batch) throw controlError('CONVERSION_CANCELLED', 'Conversion batch was cancelled');
-
         await ConversionFileModel.replaceGeneratedFile(batchId, outputRow(batchId, file, targetFormat));
-
-        if (batch.status === STATUS.PAUSING || batch.status === STATUS.PAUSED) return;
+        persistedOutputNames.add(file.file_name);
+        await assertRunnable(batchId);
+      },
+      onOutputBatch: async (outputFiles) => {
+        if (!Array.isArray(outputFiles) || !outputFiles.length) return;
+        await ConversionFileModel.replaceGeneratedFiles(
+          batchId,
+          outputFiles.map((file) => outputRow(batchId, file, targetFormat))
+        );
+        outputFiles.forEach((file) => persistedOutputNames.add(file.file_name));
         await assertRunnable(batchId);
       },
       onProgress: async ({
@@ -141,8 +150,14 @@ async function processBatch({
 
     await assertRunnable(batchId);
 
-    for (const file of conversion.files) {
-      await ConversionFileModel.replaceGeneratedFile(batchId, outputRow(batchId, file, targetFormat));
+    const unpersistedOutputs = conversion.files.filter(
+      (file) => !persistedOutputNames.has(file.file_name)
+    );
+    if (unpersistedOutputs.length) {
+      await ConversionFileModel.replaceGeneratedFiles(
+        batchId,
+        unpersistedOutputs.map((file) => outputRow(batchId, file, targetFormat))
+      );
     }
 
     await transitionOrControl(batchId, [STATUS.PROCESSING], STATUS.COMPLETING);
@@ -181,7 +196,12 @@ async function processBatch({
       zipPath,
       files: conversion.files,
       manifest,
-      timeoutMs: dataforgeConfig.output.archiveTimeoutMs,
+      timeoutMs: targetFormat === 'PDF'
+        ? dataforgeConfig.output.pdfArchiveTimeoutMs
+        : dataforgeConfig.output.archiveTimeoutMs,
+      compressionLevel: targetFormat === 'PDF'
+        ? dataforgeConfig.output.pdfArchiveCompressionLevel
+        : 9,
     });
 
     await assertRunnable(batchId);
@@ -408,9 +428,102 @@ async function cancelBatch(batchId) {
   return batch;
 }
 
+async function recoverInterruptedPdfConversions() {
+  const batches = await ConversionBatchModel.listRecoverablePdfBatches();
+  let resumed = 0;
+  let paused = 0;
+  let failed = 0;
+
+  for (const batch of batches) {
+    try {
+      if (batch.status === STATUS.PAUSING) {
+        const pausedAt = new Date();
+        await ConversionBatchModel.updateStatus(batch.id, STATUS.PAUSED, {
+          paused_at: pausedAt,
+          pause_expires_at: addHours(pausedAt, dataforgeConfig.expiry.pausedHours),
+          error_message: null,
+        });
+        paused += 1;
+        continue;
+      }
+
+      const converter = ConverterRegistry.resolve(batch.source_format, batch.target_format);
+      if (!converter || !converter.supportsPauseResume) {
+        await ConversionBatchModel.updateStatus(batch.id, STATUS.FAILED, {
+          error_message: 'Conversion interrupted by server restart and cannot be resumed automatically.',
+        });
+        failed += 1;
+        continue;
+      }
+
+      const inputRows = await ConversionFileModel.listByBatchIdAndRole(batch.id, 'INPUT');
+      const files = inputRows.map((row) => {
+        const filePath = path.join(dataforgeConfig.storage.tempRoot, row.relative_path || '');
+        return {
+          originalname: row.original_name,
+          filename: row.stored_name,
+          path: filePath,
+          size: Number(row.size_bytes || 0),
+        };
+      });
+
+      const missing = files.find((file) => !file.path || !fs.existsSync(file.path));
+      if (!files.length || missing) {
+        await ConversionBatchModel.updateStatus(batch.id, STATUS.FAILED, {
+          error_message: `Conversion interrupted by server restart. Input file is no longer available: ${missing?.originalname || 'unknown'}`,
+        });
+        failed += 1;
+        continue;
+      }
+
+      if (batch.status !== STATUS.QUEUED) {
+        const moved = await ConversionBatchModel.transitionStatus(
+          batch.id,
+          [STATUS.VALIDATING, STATUS.PROCESSING, STATUS.COMPLETING],
+          STATUS.QUEUED,
+          { error_message: null }
+        );
+        if (!moved) continue;
+      }
+
+      const options = parseJson(batch.conversion_options, {}) || {};
+      const resumeState = parseJson(batch.checkpoint_data, {}) || {};
+
+      setImmediate(() => {
+        processBatch({
+          batchId: batch.id,
+          batchName: batch.batch_name,
+          converter,
+          files,
+          sourceFormat: batch.source_format,
+          targetFormat: batch.target_format,
+          templateCode: batch.template_code,
+          options,
+          resumeState,
+        }).catch((error) => {
+          console.error(`[conversion] startup recovery failed for ${batch.id}:`, error);
+        });
+      });
+
+      resumed += 1;
+    } catch (error) {
+      console.error(`[conversion] recovery inspection failed for ${batch.id}:`, error);
+      try {
+        await ConversionBatchModel.updateStatus(batch.id, STATUS.FAILED, {
+          error_message: `Startup recovery failed: ${error.message}`,
+        });
+      } catch (_) { /* best effort */ }
+      failed += 1;
+    }
+  }
+
+  return { resumed, paused, failed, total: batches.length };
+}
+
 module.exports = {
   processBatch,
   requestPause,
   continueBatch,
   cancelBatch,
+  recoverInterruptedPdfConversions,
 };

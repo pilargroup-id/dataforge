@@ -2,10 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 
-function createZip({ zipPath, files, manifest, timeoutMs = 10 * 60 * 1000 }) {
+function createZip({ zipPath, files, manifest, timeoutMs = 10 * 60 * 1000, compressionLevel = 9 }) {
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const level = Math.max(0, Math.min(9, Number(compressionLevel) || 0));
+    const archive = archiver('zip', { zlib: { level } });
     let settled = false;
 
     const finish = (error, result) => {

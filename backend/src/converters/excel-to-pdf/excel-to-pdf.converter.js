@@ -37,6 +37,26 @@ function buildPlannedGroups(groups) {
   return planned;
 }
 
+async function mapWithConcurrency(items, concurrency, worker) {
+  if (!items.length) return [];
+
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, Number(concurrency) || 1), items.length);
+
+  async function runWorker() {
+    while (true) {
+      const current = nextIndex;
+      nextIndex += 1;
+      if (current >= items.length) return;
+      results[current] = await worker(items[current], current);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+  return results;
+}
+
 async function convert({
   files,
   outputDir,
@@ -45,8 +65,11 @@ async function convert({
   onValidated,
   onProgress,
   onOutput,
+  onOutputBatch,
   resumeState = null,
   existingOutputs = [],
+  pdfConcurrency = 4,
+  pdfCheckpointSize = 20,
 }) {
   if (files.length !== 1) {
     const err = new Error('EXCEL_TO_PDF hanya menerima 1 file Excel per batch');
@@ -99,54 +122,76 @@ async function convert({
   const existingByName = new Map(existingOutputs.map((file) => [file.file_name, file]));
   const outputFiles = [];
   const lastCompletedIndex = Math.max(0, Number(resumeState?.last_completed_index || 0));
+  const concurrency = Math.max(1, Number(pdfConcurrency) || 4);
+  const checkpointSize = Math.max(concurrency, Number(pdfCheckpointSize) || 20);
   let processed = 0;
 
+  if (lastCompletedIndex > plannedGroups.length) {
+    const err = new Error('Checkpoint PDF tidak valid: index melebihi jumlah invoice/order');
+    err.code = 'RESUME_CHECKPOINT_INVALID';
+    throw err;
+  }
+
   for (const planned of plannedGroups) {
-    const { index, orderNo, rawInvoiceNo, groupRows, pdfName } = planned;
-    const pdfPath = path.join(outputDir, pdfName);
+    if (planned.index > lastCompletedIndex) break;
 
-    if (index <= lastCompletedIndex) {
-      const existing = existingByName.get(pdfName);
-      if (!existing || !fs.existsSync(existing.file_path || pdfPath)) {
-        const err = new Error(`Checkpoint tidak konsisten. Output ${pdfName} tidak ditemukan.`);
-        err.code = 'RESUME_CHECKPOINT_INVALID';
-        throw err;
-      }
-
-      const existingPath = existing.file_path || pdfPath;
-      outputFiles.push({
-        file_name: pdfName,
-        file_path: existingPath,
-        size_bytes: existing.size_bytes || fs.statSync(existingPath).size,
-        records: existing.records || 1,
-        archive_name: `${sanitizeReadableFileName(batchName)}/${pdfName}`,
-      });
-      processed = index;
-      continue;
+    const existing = existingByName.get(planned.pdfName);
+    const pdfPath = path.join(outputDir, planned.pdfName);
+    if (!existing || !fs.existsSync(existing.file_path || pdfPath)) {
+      const err = new Error(`Checkpoint tidak konsisten. Output ${planned.pdfName} tidak ditemukan.`);
+      err.code = 'RESUME_CHECKPOINT_INVALID';
+      throw err;
     }
 
-    await template.createInvoicePdf({
-      outputPath: pdfPath,
-      rows: groupRows,
-      orderNo,
-      invoiceNo: rawInvoiceNo || `INV-${index}`,
-      columns,
+    const existingPath = existing.file_path || pdfPath;
+    outputFiles.push({
+      file_name: planned.pdfName,
+      file_path: existingPath,
+      size_bytes: existing.size_bytes || fs.statSync(existingPath).size,
+      records: existing.records || 1,
+      archive_name: `${sanitizeReadableFileName(batchName)}/${planned.pdfName}`,
+    });
+    processed = planned.index;
+  }
+
+  const pending = plannedGroups.slice(lastCompletedIndex);
+
+  for (let offset = 0; offset < pending.length; offset += checkpointSize) {
+    const window = pending.slice(offset, offset + checkpointSize);
+
+    const generated = await mapWithConcurrency(window, concurrency, async (planned) => {
+      const { orderNo, rawInvoiceNo, groupRows, pdfName, index } = planned;
+      const pdfPath = path.join(outputDir, pdfName);
+
+      await template.createInvoicePdf({
+        outputPath: pdfPath,
+        rows: groupRows,
+        orderNo,
+        invoiceNo: rawInvoiceNo || `INV-${index}`,
+        columns,
+      });
+
+      return {
+        file_name: pdfName,
+        file_path: pdfPath,
+        size_bytes: fs.statSync(pdfPath).size,
+        records: 1,
+        archive_name: `${sanitizeReadableFileName(batchName)}/${pdfName}`,
+      };
     });
 
-    const outputFile = {
-      file_name: pdfName,
-      file_path: pdfPath,
-      size_bytes: fs.statSync(pdfPath).size,
-      records: 1,
-      archive_name: `${sanitizeReadableFileName(batchName)}/${pdfName}`,
-    };
+    outputFiles.push(...generated);
 
-    outputFiles.push(outputFile);
-    processed = index;
-
-    if (onOutput) {
-      await onOutput(outputFile);
+    if (onOutputBatch) {
+      await onOutputBatch(generated);
+    } else if (onOutput) {
+      for (const outputFile of generated) {
+        await onOutput(outputFile);
+      }
     }
+
+    const lastPlanned = window[window.length - 1];
+    processed = lastPlanned.index;
 
     if (onProgress) {
       await onProgress({
@@ -157,14 +202,19 @@ async function convert({
         progressPercent: Math.round((processed / totalRecords) * 100),
         checkpointData: {
           last_completed_index: processed,
-          last_completed_key: orderNo,
+          last_completed_key: lastPlanned.orderNo,
         },
       });
     }
   }
 
   return {
-    schema: { headers, template_code: template.code },
+    schema: {
+      headers,
+      template_code: template.code,
+      pdf_render_concurrency: concurrency,
+      pdf_checkpoint_size: checkpointSize,
+    },
     files: outputFiles,
     totalRecords,
   };

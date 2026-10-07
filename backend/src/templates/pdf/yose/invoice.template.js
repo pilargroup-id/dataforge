@@ -12,6 +12,13 @@ const COMPANY = {
 };
 
 const LOGO_PATH = path.join(__dirname, 'assets', 'logo.jpeg');
+const HAS_LOGO = fs.existsSync(LOGO_PATH);
+const IDR_NUMBER_FORMATTER = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+const ID_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+});
 
 function safeString(value, fallback = '-') {
   if (value === undefined || value === null || String(value).trim() === '') return fallback;
@@ -42,12 +49,12 @@ function safeInt(value, fallback = 1) {
 }
 
 function rupiah(value) {
-  return `Rp ${Math.round(safeNumber(value, 0)).toLocaleString('id-ID')}`;
+  return `Rp ${IDR_NUMBER_FORMATTER.format(Math.round(safeNumber(value, 0)))}`;
 }
 
 function formatDate(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).format(value);
+    return ID_DATE_FORMATTER.format(value);
   }
   return safeString(value);
 }
@@ -70,11 +77,11 @@ function drawHeader(doc, invoiceNo, printTime) {
   const left = 42;
   const top = 42;
 
-  if (fs.existsSync(LOGO_PATH)) {
+  if (HAS_LOGO) {
     try { doc.image(LOGO_PATH, left, top, { fit: [75, 75] }); } catch (_) { /* optional asset */ }
   }
 
-  const companyX = fs.existsSync(LOGO_PATH) ? 125 : left;
+  const companyX = HAS_LOGO ? 125 : left;
   doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text(COMPANY.name, companyX, top + 4);
   doc.font('Helvetica').fontSize(7.5).fillColor('#4B5563')
     .text(COMPANY.address[0], companyX, top + 23)

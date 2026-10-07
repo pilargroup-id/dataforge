@@ -73,6 +73,38 @@ async function replaceGeneratedFile(batchId, file) {
   await insertMany(batchId, [file]);
 }
 
+
+async function replaceGeneratedFiles(batchId, files) {
+  if (!files.length) return;
+  const pool = requireDb();
+  const chunkSize = 200;
+
+  const byRole = new Map();
+  for (const file of files) {
+    const role = file.file_role;
+    if (!byRole.has(role)) byRole.set(role, []);
+    byRole.get(role).push(file);
+  }
+
+  for (const [role, roleFiles] of byRole.entries()) {
+    for (let offset = 0; offset < roleFiles.length; offset += chunkSize) {
+      const chunk = roleFiles.slice(offset, offset + chunkSize);
+      const names = chunk.map((file) => file.stored_name).filter(Boolean);
+
+      if (names.length) {
+        const placeholders = names.map(() => '?').join(', ');
+        await pool.query(
+          `DELETE FROM conversion_files
+           WHERE batch_id = ? AND file_role = ? AND stored_name IN (${placeholders})`,
+          [batchId, role, ...names]
+        );
+      }
+
+      await insertMany(batchId, chunk);
+    }
+  }
+}
+
 async function deleteGeneratedFiles(batchId) {
   const pool = requireDb();
   await pool.query(
@@ -88,5 +120,6 @@ module.exports = {
   listByBatchIdAndRole,
   findByIdAndBatchId,
   replaceGeneratedFile,
+  replaceGeneratedFiles,
   deleteGeneratedFiles,
 };

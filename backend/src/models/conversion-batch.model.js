@@ -285,6 +285,19 @@ async function listExpiredPaused(now) {
   return rows;
 }
 
+
+async function listRecoverablePdfBatches() {
+  const pool = requireDb();
+  const [rows] = await pool.query(
+    `SELECT *
+     FROM conversion_batches
+     WHERE UPPER(target_format) = 'PDF'
+       AND status IN ('QUEUED', 'VALIDATING', 'PROCESSING', 'PAUSING', 'COMPLETING')
+     ORDER BY created_at ASC`
+  );
+  return rows;
+}
+
 async function deleteById(id) {
   const pool = requireDb();
   const [result] = await pool.query('DELETE FROM conversion_batches WHERE id = ?', [id]);
@@ -301,5 +314,6 @@ module.exports = {
   listJsonlSourceBatches,
   listExpired,
   listExpiredPaused,
+  listRecoverablePdfBatches,
   deleteById,
 };
