@@ -270,7 +270,7 @@ function buildItemLineXml(item, itemIndex) {
   for (let i = 1; i <= 10; i += 1) out += `<ITEMRESERVED${i}/>`;
   out += tag('ITEMOVDESC', item.ITEMOVDESC);
   out += tag('UNITPRICE', unitPrice);
-  out += '<ITEMDISCPC/>';
+  out += tag('ITEMDISCPC', item.ITEMDISCPC);
   out += tag('TAXCODES', 4);
   out += '<GROUPSEQ/>';
   out += tag('SOSEQ', 0);
