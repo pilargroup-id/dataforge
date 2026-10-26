@@ -270,12 +270,7 @@ function buildXmlHeader(branchCode) {
 
 function buildItemLineXml(item, itemIndex) {
   const quantity = num(item.QUANTITY, 0);
-  const netUnitPrice = num(item.UNITPRICE, 0);
-  const storeVoucher = num(item.STOREVOUCHER, 0);
-  const netLineAmount = netUnitPrice * quantity;
-  const grossLineAmount = netLineAmount + storeVoucher;
-  const grossUnitPrice = quantity > 0 ? grossLineAmount / quantity : netUnitPrice;
-  const discountPercent = grossLineAmount > 0 ? (storeVoucher / grossLineAmount) * 100 : 0;
+  const unitPrice = num(item.UNITPRICE, 0);
 
   let out = '<ITEMLINE operation="Add">';
   out += tag('KeyID', item.KEYID || itemIndex + 1);
@@ -285,12 +280,12 @@ function buildItemLineXml(item, itemIndex) {
   out += tag('UNITRATIO', 1);
   for (let i = 1; i <= 10; i += 1) out += `<ITEMRESERVED${i}/>`;
   out += tag('ITEMOVDESC', item.ITEMOVDESC);
-  out += tag('UNITPRICE', formatDecimal(netUnitPrice));
-  out += tag('ITEMDISCPC', formatDecimal(discountPercent));
+  out += tag('UNITPRICE', formatDecimal(unitPrice));
+  out += '<ITEMDISCPC/>';
   out += tag('TAXCODES', 4);
   out += '<GROUPSEQ/>';
   out += tag('SOSEQ', 0);
-  out += tag('BRUTOUNITPRICE', formatDecimal(grossUnitPrice));
+  out += tag('BRUTOUNITPRICE', formatDecimal(unitPrice));
   out += tag('WAREHOUSEID', item.WAREHOUSEID_ITEM || item.WAREHOUSEID);
   out += tag('QTYCONTROL', 0);
   out += '<DOSEQ/>';
@@ -302,6 +297,10 @@ function buildItemLineXml(item, itemIndex) {
 
 function buildInvoiceXml(invoice, requestId) {
   const h = invoice.header;
+  const cashDiscount = invoice.items.reduce(
+    (total, item) => total + num(item.STOREVOUCHER, 0),
+    0
+  );
   let out = `<SALESINVOICE operation="Add" REQUESTID="${requestId}">`;
 
   invoice.items.forEach((item, itemIndex) => {
@@ -317,7 +316,7 @@ function buildInvoiceXml(invoice, requestId) {
   out += tag('RATE', num(h.RATE, 1));
   out += tag('INCLUSIVETAX', 1);
   out += tag('CUSTOMERISTAXABLE', 1);
-  out += tag('CASHDISCOUNT', 0);
+  out += tag('CASHDISCOUNT', formatDecimal(cashDiscount));
   out += '<CASHDISCPC/>';
   out += tag('FREIGHT', 0);
   out += tag('TERMSID', h.TERMSID);
