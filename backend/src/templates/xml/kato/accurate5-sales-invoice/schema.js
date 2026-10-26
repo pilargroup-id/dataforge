@@ -55,10 +55,10 @@ const REQUIRED_HEADERS = [
   'Location',
   'Urut',
   'Kode Barang',
-  'SUM of Store Voucher',
   'UOM',
   'QUANTITY',
   'UNIT PRICE',
+  'SUM of Store Voucher',
 ];
 
 const FIELD_MAP = {
@@ -77,14 +77,14 @@ const FIELD_MAP = {
   CURRENCYNAME: 'Currency',
   TAXFORMNUMBER: 'Faktur No',
   CUSTOMERISTAXABLE: 'Required E-Faktur',
-  
+
   KEYID: 'Urut',
   ITEMNO: 'Kode Barang',
   ITEMOVDESC: 'Display Name',
   ITEMUNIT: 'UOM',
-  ITEMDISCPC: 'SUM of Store Voucher',
   QUANTITY: 'QUANTITY',
   UNITPRICE: 'UNIT PRICE',
+  STOREVOUCHER: 'SUM of Store Voucher',
   WAREHOUSEID_ITEM: 'Location',
 };
 

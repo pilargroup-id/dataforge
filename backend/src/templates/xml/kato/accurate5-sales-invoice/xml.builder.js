@@ -83,6 +83,12 @@ function num(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function formatDecimal(value, precision = 10) {
+  if (!Number.isFinite(value)) return '';
+  const rounded = Math.round((value + Number.EPSILON) * (10 ** precision)) / (10 ** precision);
+  return String(rounded);
+}
+
 function findHeaderRow(rawRows, schema) {
   const required = new Set((schema.requiredHeaders || []).map(normalizeHeader));
   let bestIndex = -1;
@@ -214,11 +220,14 @@ function groupInvoices(rows) {
     if (!row.ITEMNO) {
       errors.push({ row: rowNumber, level: 'error', message: 'Kode Barang kosong' });
     }
-    if (row.QUANTITY === '' || !Number.isFinite(Number(row.QUANTITY))) {
+    if (row.QUANTITY === '' || !Number.isFinite(Number(row.QUANTITY)) || Number(row.QUANTITY) <= 0) {
       errors.push({ row: rowNumber, level: 'error', message: 'QUANTITY tidak valid' });
     }
-    if (row.UNITPRICE === '' || !Number.isFinite(Number(row.UNITPRICE))) {
+    if (row.UNITPRICE === '' || !Number.isFinite(Number(row.UNITPRICE)) || Number(row.UNITPRICE) < 0) {
       errors.push({ row: rowNumber, level: 'error', message: 'UNIT PRICE tidak valid' });
+    }
+    if (row.STOREVOUCHER === '' || !Number.isFinite(Number(row.STOREVOUCHER)) || Number(row.STOREVOUCHER) < 0) {
+      errors.push({ row: rowNumber, level: 'error', message: 'SUM of Store Voucher tidak valid' });
     }
     if (!row.CUSTOMERID) {
       errors.push({ row: rowNumber, level: 'error', message: 'Customer ID kosong' });
@@ -260,21 +269,28 @@ function buildXmlHeader(branchCode) {
 }
 
 function buildItemLineXml(item, itemIndex) {
-  const unitPrice = num(item.UNITPRICE, 0);
+  const quantity = num(item.QUANTITY, 0);
+  const netUnitPrice = num(item.UNITPRICE, 0);
+  const storeVoucher = num(item.STOREVOUCHER, 0);
+  const netLineAmount = netUnitPrice * quantity;
+  const grossLineAmount = netLineAmount + storeVoucher;
+  const grossUnitPrice = quantity > 0 ? grossLineAmount / quantity : netUnitPrice;
+  const discountPercent = grossLineAmount > 0 ? (storeVoucher / grossLineAmount) * 100 : 0;
+
   let out = '<ITEMLINE operation="Add">';
   out += tag('KeyID', item.KEYID || itemIndex + 1);
   out += tag('ITEMNO', item.ITEMNO);
-  out += tag('QUANTITY', num(item.QUANTITY, 0));
+  out += tag('QUANTITY', quantity);
   out += tag('ITEMUNIT', item.ITEMUNIT);
   out += tag('UNITRATIO', 1);
   for (let i = 1; i <= 10; i += 1) out += `<ITEMRESERVED${i}/>`;
   out += tag('ITEMOVDESC', item.ITEMOVDESC);
-  out += tag('UNITPRICE', unitPrice);
-  out += tag('ITEMDISCPC', item.ITEMDISCPC);
+  out += tag('UNITPRICE', formatDecimal(netUnitPrice));
+  out += tag('ITEMDISCPC', formatDecimal(discountPercent));
   out += tag('TAXCODES', 4);
   out += '<GROUPSEQ/>';
   out += tag('SOSEQ', 0);
-  out += tag('BRUTOUNITPRICE', unitPrice);
+  out += tag('BRUTOUNITPRICE', formatDecimal(grossUnitPrice));
   out += tag('WAREHOUSEID', item.WAREHOUSEID_ITEM || item.WAREHOUSEID);
   out += tag('QTYCONTROL', 0);
   out += '<DOSEQ/>';
