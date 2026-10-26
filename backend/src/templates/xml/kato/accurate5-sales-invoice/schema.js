@@ -58,6 +58,7 @@ const REQUIRED_HEADERS = [
   'UOM',
   'QUANTITY',
   'UNIT PRICE',
+  'Sum of Total Harga Produk',
   'SUM of Store Voucher',
 ];
 
@@ -84,6 +85,7 @@ const FIELD_MAP = {
   ITEMUNIT: 'UOM',
   QUANTITY: 'QUANTITY',
   UNITPRICE: 'UNIT PRICE',
+  LINE_TOTAL: 'Sum of Total Harga Produk',
   STOREVOUCHER: 'SUM of Store Voucher',
   WAREHOUSEID_ITEM: 'Location',
 };

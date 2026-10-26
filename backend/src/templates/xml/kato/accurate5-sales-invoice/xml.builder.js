@@ -223,8 +223,8 @@ function groupInvoices(rows) {
     if (row.QUANTITY === '' || !Number.isFinite(Number(row.QUANTITY)) || Number(row.QUANTITY) <= 0) {
       errors.push({ row: rowNumber, level: 'error', message: 'QUANTITY tidak valid' });
     }
-    if (row.UNITPRICE === '' || !Number.isFinite(Number(row.UNITPRICE)) || Number(row.UNITPRICE) < 0) {
-      errors.push({ row: rowNumber, level: 'error', message: 'UNIT PRICE tidak valid' });
+    if (row.LINE_TOTAL === '' || !Number.isFinite(Number(row.LINE_TOTAL)) || Number(row.LINE_TOTAL) < 0) {
+      errors.push({ row: rowNumber, level: 'error', message: 'Sum of Total Harga Produk tidak valid' });
     }
     if (row.STOREVOUCHER === '' || !Number.isFinite(Number(row.STOREVOUCHER)) || Number(row.STOREVOUCHER) < 0) {
       errors.push({ row: rowNumber, level: 'error', message: 'SUM of Store Voucher tidak valid' });
@@ -270,7 +270,8 @@ function buildXmlHeader(branchCode) {
 
 function buildItemLineXml(item, itemIndex) {
   const quantity = num(item.QUANTITY, 0);
-  const unitPrice = num(item.UNITPRICE, 0);
+  const lineTotal = num(item.LINE_TOTAL, 0);
+  const unitPrice = quantity > 0 ? lineTotal / quantity : 0;
 
   let out = '<ITEMLINE operation="Add">';
   out += tag('KeyID', item.KEYID || itemIndex + 1);
