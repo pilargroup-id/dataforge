@@ -9,11 +9,24 @@ function normalizeHeader(value) {
   return normalizeWhitespace(value).toLowerCase();
 }
 
+const EXCEL_DATE_TIMEZONE = 'Asia/Jakarta';
+
+function formatDateOnlyInTimeZone(value, timeZone = EXCEL_DATE_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
 function cellToString(value) {
   if (value === null || value === undefined) return '';
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+    return formatDateOnlyInTimeZone(value);
   }
   return String(value).trim();
 }
