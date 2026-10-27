@@ -27,7 +27,10 @@ async function convert({
     throw err;
   }
 
-  const workbook = XLSX.readFile(files[0].path, { cellDates: true });
+  // Keep Excel dates as raw serial numbers. Converting them to JavaScript Date
+  // objects here can shift date-only values by one day depending on server timezone.
+  // Each XML template is responsible for deterministic date normalization.
+  const workbook = XLSX.readFile(files[0].path, { cellDates: false });
   const requestedSheet = workbook.SheetNames.find(
     (name) => name.trim().toLowerCase() === template.schema.sheetName.toLowerCase()
   );
