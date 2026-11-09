@@ -137,6 +137,30 @@ function getSourceValue(row, headerIndex, sourceHeader) {
   return index === undefined ? '' : cellToString(row[index]);
 }
 
+function invoiceDateFromInvoiceNo(value) {
+  const invoiceNo = normalizeWhitespace(value).toUpperCase();
+  const match = invoiceNo.match(/(\d{2})(\d{2})(\d{2})[A-Z]*$/);
+  if (!match) return '';
+
+  const year = 2000 + Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isInteger(month) || !Number.isInteger(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+    return '';
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day
+  ) {
+    return '';
+  }
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function mapFinanceRow(row, headerIndex, schema, rowNumber) {
   const mapped = {};
   const source = {};
@@ -149,9 +173,15 @@ function mapFinanceRow(row, headerIndex, schema, rowNumber) {
     mapped[targetField] = source[sourceHeader] ?? '';
   });
 
-  mapped.INVOICEDATE = normalizeDate(mapped.INVOICEDATE);
-  mapped.SHIPDATE = normalizeDate(mapped.SHIPDATE || mapped.INVOICEDATE);
-  mapped.TAXDATE = normalizeDate(mapped.TAXDATE || mapped.INVOICEDATE);
+  const sourceInvoiceDate = normalizeDate(mapped.INVOICEDATE);
+  const invoiceNoDate = invoiceDateFromInvoiceNo(mapped.INVOICENO);
+  const effectiveInvoiceDate = invoiceNoDate || sourceInvoiceDate;
+
+  // KATO invoice numbers carry the authoritative YYMMDD transaction date.
+  // This avoids ambiguous DD/MM vs MM/DD Excel serials across stores in the same file.
+  mapped.INVOICEDATE = effectiveInvoiceDate;
+  mapped.SHIPDATE = effectiveInvoiceDate || normalizeDate(mapped.SHIPDATE);
+  mapped.TAXDATE = effectiveInvoiceDate || normalizeDate(mapped.TAXDATE);
   mapped.CUSTOMERISTAXABLE = normalizeBinaryFlag(mapped.CUSTOMERISTAXABLE, 0);
   mapped.__source = source;
   mapped.__rowNumber = rowNumber;
